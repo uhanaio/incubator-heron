@@ -19,8 +19,8 @@ package com.twitter.heron.common.basics;
 public final class ByteAmount implements Comparable<ByteAmount> {
   private static final long MB = 1024L * 1024;
   private static final long GB = MB * 1024;
-  private static final long MAX_MB = Math.round(Long.MAX_VALUE / MB);
-  private static final long MAX_GB = Math.round(Long.MAX_VALUE / GB);
+  private static final long MAX_MB = Math.floorDiv(Long.MAX_VALUE, MB);
+  private static final long MAX_GB = Math.floorDiv(Long.MAX_VALUE, GB);
 
   public static final ByteAmount ZERO = ByteAmount.fromBytes(0);
   private final long bytes;
