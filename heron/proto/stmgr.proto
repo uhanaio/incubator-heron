@@ -3,8 +3,8 @@ package heron.proto.stmgr;
 option java_package = "com.twitter.heron.proto.stmgr";
 option java_outer_classname = "StreamManager";
 
-import "common.proto";
-import "physical_plan.proto";
+import "heron/proto/common.proto";
+import "heron/proto/physical_plan.proto";
 
 //
 // Messages sent by topologymaster

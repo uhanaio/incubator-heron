@@ -4,9 +4,9 @@ package heron.proto.tmaster;
 option java_package = "com.twitter.heron.proto.tmaster";
 option java_outer_classname = "TopologyMaster";
 
-import "common.proto";
-import "stats.proto";
-import "physical_plan.proto";
+import "heron/proto/common.proto";
+import "heron/proto/stats.proto";
+import "heron/proto/physical_plan.proto";
 
 message TMasterLocation {
   required string topology_name = 1;

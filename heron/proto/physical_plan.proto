@@ -4,7 +4,7 @@ package heron.proto.system;
 option java_package = "com.twitter.heron.proto.system";
 option java_outer_classname = "PhysicalPlans";
 
-import "topology.proto";
+import "heron/proto/topology.proto";
 
 // This file defines the physical plan of a topology.
 // It reflects the dynamic running state of a topology.

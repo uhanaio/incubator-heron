@@ -4,8 +4,8 @@ package heron.proto.scheduler;
 option java_package = "com.twitter.heron.proto.scheduler";
 option java_outer_classname = "Scheduler";
 
-import "common.proto";
-import "packing_plan.proto";
+import "heron/proto/common.proto";
+import "heron/proto/packing_plan.proto";
 
 message SchedulerLocation {
   required string topology_name = 1;
