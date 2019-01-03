@@ -70,62 +70,6 @@ public class LauncherUtils {
   }
 
   /**
-   * Invoke the onScheduler() in IScheduler directly as a library
-   *
-   * @param config The Config to initialize IScheduler
-   * @param runtime The runtime Config to initialize IScheduler
-   * @param scheduler the IScheduler to invoke
-   * @param packing The PackingPlan to scheduler for OnSchedule()
-   * @return true if scheduling successfully
-   */
-  public boolean onScheduleAsLibrary(
-      Config config,
-      Config runtime,
-      IScheduler scheduler,
-      PackingPlan packing) {
-    boolean ret = false;
-
-    try {
-      scheduler.initialize(config, runtime);
-      ret = scheduler.onSchedule(packing);
-
-      if (ret) {
-        // Set the SchedulerLocation at last step,
-        // since some methods in IScheduler will provide correct values
-        // only after IScheduler.onSchedule is invoked correctly
-        ret = SchedulerUtils.setLibSchedulerLocation(runtime, scheduler, false);
-      } else {
-        LOG.severe("Failed to invoke IScheduler as library");
-      }
-    } finally {
-      scheduler.close();
-    }
-
-    return ret;
-  }
-
-  /**
-   * Creates and initializes scheduler instance
-   *
-   * @return initialized scheduler instances
-   */
-  public IScheduler getSchedulerInstance(Config config, Config runtime)
-      throws SchedulerException {
-    String schedulerClass = Context.schedulerClass(config);
-    IScheduler scheduler;
-    try {
-      // create an instance of scheduler
-      scheduler = ReflectionUtils.newInstance(schedulerClass);
-    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
-      throw new SchedulerException(String.format("Failed to instantiate scheduler using class '%s'",
-          schedulerClass));
-    }
-
-    scheduler.initialize(config, runtime);
-    return scheduler;
-  }
-
-  /**
    * Creates initial runtime config instance using topology information.
    *
    * @return initial runtime config instance
@@ -134,7 +78,6 @@ public class LauncherUtils {
     return Config.newBuilder()
         .put(Key.TOPOLOGY_ID, topology.getId())
         .put(Key.TOPOLOGY_NAME, topology.getName())
-        .put(Key.TOPOLOGY_DEFINITION, topology)
         .put(Key.NUM_CONTAINERS, 1 + TopologyUtils.getNumContainers(topology))
         .build();
   }
@@ -149,16 +92,4 @@ public class LauncherUtils {
         .put(Key.SCHEDULER_STATE_MANAGER_ADAPTOR, adaptor).build();
   }
 
-  /**
-   * Creates a config instance with packing plan info added to runtime config
-   *
-   * @return packing details config
-   */
-  public Config createConfigWithPackingDetails(Config runtime, PackingPlan packing) {
-    return Config.newBuilder()
-        .putAll(runtime)
-        .put(Key.COMPONENT_RAMMAP, packing.getComponentRamDistribution())
-        .put(Key.NUM_CONTAINERS, 1 + packing.getContainers().size())
-        .build();
-  }
 }

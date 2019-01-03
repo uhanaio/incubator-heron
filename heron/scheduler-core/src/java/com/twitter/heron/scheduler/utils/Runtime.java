@@ -45,20 +45,8 @@ public final class Runtime {
     return (TopologyAPI.Topology) runtime.get(Key.TOPOLOGY_DEFINITION);
   }
 
-  public static URI topologyPackageUri(Config cfg) {
-    return (URI) cfg.get(Key.TOPOLOGY_PACKAGE_URI);
-  }
-
   public static SchedulerStateManagerAdaptor schedulerStateManagerAdaptor(Config runtime) {
     return (SchedulerStateManagerAdaptor) runtime.get(Key.SCHEDULER_STATE_MANAGER_ADAPTOR);
-  }
-
-  public static ILauncher launcherClassInstance(Config runtime) {
-    return (ILauncher) runtime.get(Key.LAUNCHER_CLASS_INSTANCE);
-  }
-
-  public static Shutdown schedulerShutdown(Config runtime) {
-    return (Shutdown) runtime.get(Key.SCHEDULER_SHUTDOWN);
   }
 
   public static String componentRamMap(Config runtime) {
