@@ -78,6 +78,7 @@ public class LauncherUtils {
     return Config.newBuilder()
         .put(Key.TOPOLOGY_ID, topology.getId())
         .put(Key.TOPOLOGY_NAME, topology.getName())
+        .put(Key.TOPOLOGY_DEFINITION, topology)
         .put(Key.NUM_CONTAINERS, 1 + TopologyUtils.getNumContainers(topology))
         .build();
   }
