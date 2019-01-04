@@ -45,13 +45,14 @@ import com.twitter.heron.spi.common.Context;
 import com.twitter.heron.spi.common.Key;
 import com.twitter.heron.spi.packing.PackingException;
 import com.twitter.heron.spi.packing.PackingPlan;
-import com.twitter.heron.spi.scheduler.ILauncher;
 import com.twitter.heron.spi.scheduler.LauncherException;
-import com.twitter.heron.spi.statemgr.IStateManager;
 import com.twitter.heron.spi.statemgr.SchedulerStateManagerAdaptor;
 import com.twitter.heron.spi.uploader.IUploader;
 import com.twitter.heron.spi.uploader.UploaderException;
 import com.twitter.heron.spi.utils.ReflectionUtils;
+import com.twitter.heron.statemgr.zookeeper.ZkContext;
+import com.twitter.heron.statemgr.zookeeper.curator.CuratorStateManager;
+
 
 /**
  * Calls Uploader to upload topology package, and Launcher to launch Scheduler.
@@ -158,14 +159,6 @@ public class SubmitterMain {
         .argName("release information")
         .build();
 
-    Option topologyPackage = Option.builder("y")
-        .desc("tar ball containing user submitted jar/tar, defn and config")
-        .longOpt("topology_package")
-        .hasArgs()
-        .argName("topology package")
-        .required()
-        .build();
-
     Option topologyDefn = Option.builder("f")
         .desc("serialized file containing Topology protobuf")
         .longOpt("topology_defn")
@@ -208,7 +201,6 @@ public class SubmitterMain {
     options.addOption(configFile);
     options.addOption(configOverrides);
     options.addOption(releaseFile);
-    options.addOption(topologyPackage);
     options.addOption(topologyDefn);
     options.addOption(topologyJar);
     options.addOption(dryRun);
@@ -245,7 +237,6 @@ public class SubmitterMain {
     String configPath = cmd.getOptionValue("config_path");
     String overrideConfigFile = cmd.getOptionValue("override_config_file");
     String releaseFile = cmd.getOptionValue("release_file");
-    String topologyPackage = cmd.getOptionValue("topology_package");
     String topologyDefnFile = cmd.getOptionValue("topology_defn");
     String topologyBinaryFile = cmd.getOptionValue("topology_bin");
 
@@ -271,7 +262,7 @@ public class SubmitterMain {
         .putAll(ConfigLoader.loadConfig(heronHome, configPath, releaseFile, overrideConfigFile))
         .putAll(commandLineConfigs(cluster, role, environ, submitUser, dryRun,
             dryRunFormat, isVerbose(cmd)))
-        .putAll(SubmitterUtils.topologyConfigs(topologyPackage, topologyBinaryFile,
+        .putAll(SubmitterUtils.topologyConfigs(topologyBinaryFile,
             topologyDefnFile, topology))
         .build());
   }
@@ -365,7 +356,7 @@ public class SubmitterMain {
    * 3. Call LauncherRunner
    *
    */
-  public void submitTopology() throws TopologySubmissionException {
+  public void submitTopology() {
     // build primary runtime config first
     Config primaryRuntime = Config.newBuilder()
           .putAll(LauncherUtils.getInstance().createPrimaryRuntime(topology)).build();
@@ -376,61 +367,37 @@ public class SubmitterMain {
     }
     // 1. Do prepare work
     // create an instance of state manager
-    String statemgrClass = Context.stateManagerClass(config);
-    IStateManager statemgr;
-
-    // Create an instance of the launcher class
-    String launcherClass = Context.launcherClass(config);
-    ILauncher launcher;
-
-    // create an instance of the uploader class
-    String uploaderClass = Context.uploaderClass(config);
-    IUploader uploader;
-
-    // create an instance of state manager
-    try {
-      statemgr = ReflectionUtils.newInstance(statemgrClass);
-    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
-      throw new TopologySubmissionException(
-          String.format("Failed to instantiate state manager class '%s'", statemgrClass), e);
-    }
-
-    // create an instance of launcher
-    try {
-      launcher = ReflectionUtils.newInstance(launcherClass);
-    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
-      throw new LauncherException(
-          String.format("Failed to instantiate launcher class '%s'", launcherClass), e);
-    }
-
-    // create an instance of uploader
-    try {
-      uploader = ReflectionUtils.newInstance(uploaderClass);
-    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
-      throw new UploaderException(
-          String.format("Failed to instantiate uploader class '%s'", uploaderClass), e);
-    }
+    CuratorStateManager statemgr = new CuratorStateManager();
 
     // Put it in a try block so that we can always clean resources
     try {
       // initialize the state manager
       statemgr.initialize(config);
 
-      // initialize the uploader
-      uploader.initialize(config);
+      String name = topology.getName();
+
+      statemgr.deleteNode("/heron/statefulcheckpoints/" + name, true);
+      statemgr.deleteNode("/heron/pplans/" + name, true);
+      statemgr.deleteNode("/heron/schedulers/" + name, true);
+      statemgr.deleteNode("/heron/metricscaches/" + name, true);
+      statemgr.deleteNode("/heron/packingplans/" + name, true);
+      statemgr.deleteNode("/heron/tmasters/" + name, true);
+      statemgr.deleteNode("/heron/executionstate/" + name, true);
+      statemgr.deleteNode("/heron/locks/" + name, true);
+      statemgr.deleteNode("/heron/topologies/" + name, true);
+
+      if (ZkContext.isInitializeTree(config)) {
+        statemgr.initTree();
+      }
 
       // TODO(mfu): timeout should read from config
       SchedulerStateManagerAdaptor adaptor = new SchedulerStateManagerAdaptor(statemgr, 5000);
-
-      // Check if topology is already running
-      validateSubmit(adaptor, topology.getName());
 
       LOG.log(Level.FINE, "Topology {0} to be submitted", topology.getName());
 
       Config runtimeWithoutPackageURI = Config.newBuilder()
           .putAll(primaryRuntime)
           .putAll(LauncherUtils.getInstance().createAdaptorRuntime(adaptor))
-          .put(Key.LAUNCHER_CLASS_INSTANCE, launcher)
           .build();
 
       PackingPlan packingPlan = LauncherUtils.getInstance()
@@ -441,13 +408,9 @@ public class SubmitterMain {
       runtimeWithoutPackageURI =
           updateNumContainersIfNeeded(runtimeWithoutPackageURI, topology, packingPlan);
 
-      // If the packing plan is valid we will upload necessary packages
-      URI packageURI = uploadPackage(uploader);
-
       // Update the runtime config with the packageURI
       Config runtimeAll = Config.newBuilder()
           .putAll(runtimeWithoutPackageURI)
-          .put(Key.TOPOLOGY_PACKAGE_URI, packageURI)
           .build();
 
       callLauncherRunner(runtimeAll);
@@ -455,11 +418,8 @@ public class SubmitterMain {
     } catch (LauncherException | PackingException e) {
       // we undo uploading of topology package only if launcher fails to
       // launch topology, which will throw LauncherException or PackingException
-      uploader.undo();
-      throw e;
+      throw new RuntimeException(e);
     } finally {
-      SysUtils.closeIgnoringExceptions(uploader);
-      SysUtils.closeIgnoringExceptions(launcher);
       SysUtils.closeIgnoringExceptions(statemgr);
     }
   }
@@ -523,23 +483,6 @@ public class SubmitterMain {
     }
 
     return topologyBuilder.setTopologyConfig(configBuilder).build();
-  }
-
-  protected void validateSubmit(SchedulerStateManagerAdaptor adaptor, String topologyName)
-      throws TopologySubmissionException {
-    // Check whether the topology has already been running
-    // TODO(rli): anti-pattern is too nested on this path to be refactored
-    Boolean isTopologyRunning = adaptor.isTopologyRunning(topologyName);
-
-    if (isTopologyRunning != null && isTopologyRunning.equals(Boolean.TRUE)) {
-      throw new TopologySubmissionException(
-          String.format("Topology '%s' already exists", topologyName));
-    }
-  }
-
-  protected URI uploadPackage(IUploader uploader) throws UploaderException {
-    // upload the topology package to the storage
-    return uploader.uploadPackage();
   }
 
   protected void callLauncherRunner(Config runtime)

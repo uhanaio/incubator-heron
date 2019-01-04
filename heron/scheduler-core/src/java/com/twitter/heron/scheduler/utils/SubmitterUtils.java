@@ -23,13 +23,12 @@ public final class SubmitterUtils {
   /**
    * Create the topology config
    *
-   * @param topologyPackagePath path to the tar ball containing user submitted jar/tar, defn and config
    * @param topologyBinaryFile name of the user submitted topology jar/tar/pex file
    * @param topologyDefinitionPath path to the topology definition file
    * @param topology proto in memory version of topology definition
    * @return config the topology config
    */
-  public static Config topologyConfigs(String topologyPackagePath, String topologyBinaryFile,
+  public static Config topologyConfigs(String topologyBinaryFile,
         String topologyDefinitionPath, TopologyAPI.Topology topology) {
     PackageType packageType = PackageType.getPackageType(topologyBinaryFile);
 
@@ -37,7 +36,6 @@ public final class SubmitterUtils {
         .put(Key.TOPOLOGY_ID, topology.getId())
         .put(Key.TOPOLOGY_NAME, topology.getName())
         .put(Key.TOPOLOGY_DEFINITION_FILE, topologyDefinitionPath)
-        .put(Key.TOPOLOGY_PACKAGE_FILE, topologyPackagePath)
         .put(Key.TOPOLOGY_BINARY_FILE, topologyBinaryFile)
         .put(Key.TOPOLOGY_PACKAGE_TYPE, packageType)
         .build();

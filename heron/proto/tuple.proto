@@ -4,7 +4,7 @@ package heron.proto.system;
 option java_package = "com.twitter.heron.proto.system";
 option java_outer_classname = "HeronTuples";
 
-import "topology.proto";
+import "heron/proto/topology.proto";
 
 message RootId {
   required int32 taskid = 1;

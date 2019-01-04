@@ -40,13 +40,10 @@ public class LaunchRunner {
   private Config config;
   private Config runtime;
 
-  private ILauncher launcher;
-
   public LaunchRunner(Config config, Config runtime) {
 
     this.config = config;
     this.runtime = runtime;
-    this.launcher = Runtime.launcherClassInstance(runtime);
   }
 
   public ExecutionEnvironment.ExecutionState createExecutionState() {
@@ -133,9 +130,6 @@ public class LaunchRunner {
       throw new SubmitDryRunResponse(topology, config, packedPlan);
     }
 
-    // initialize the launcher
-    launcher.initialize(config, runtime);
-
     // Set topology def first since we determine whether a topology is running
     // by checking the existence of topology def
     // store the trimmed topology definition into the state manager
@@ -162,15 +156,6 @@ public class LaunchRunner {
       statemgr.deleteTopology(topologyName);
       throw new LauncherException(String.format(
           "Failed to set execution state for topology '%s'", topologyName));
-    }
-
-    // launch the topology, clear the state if it fails
-    if (!launcher.launch(packedPlan)) {
-      statemgr.deleteExecutionState(topologyName);
-      statemgr.deletePackingPlan(topologyName);
-      statemgr.deleteTopology(topologyName);
-      throw new LauncherException(String.format(
-          "Failed to launch topology '%s'", topologyName));
     }
   }
 }
