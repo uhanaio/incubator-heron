@@ -257,7 +257,7 @@ public class BoltInstance implements IInstance {
         int sourceTaskId = tuples.getSrcTaskId();
 
         for (HeronTuples.HeronDataTuple dataTuple : tuples.getData().getTuplesList()) {
-          long startExecuteTuple = System.nanoTime();
+          long startDeserializationTuple = System.nanoTime();
           // Create the value list and fill the value
           List<Object> values = new ArrayList<>(nValues);
           for (int i = 0; i < nValues; i++) {
@@ -266,7 +266,8 @@ public class BoltInstance implements IInstance {
 
           // Decode the tuple
           TupleImpl t = new TupleImpl(topologyContext, stream, dataTuple.getKey(),
-              dataTuple.getRootsList(), values, startExecuteTuple, false, sourceTaskId);
+              dataTuple.getRootsList(), values, startDeserializationTuple, false, sourceTaskId);
+          long startExecuteTuple = System.nanoTime();
 
           // Delegate to the use defined bolt
           bolt.execute(t);
@@ -275,11 +276,13 @@ public class BoltInstance implements IInstance {
           long endExecuteTuple = System.nanoTime();
 
           long executeLatency = endExecuteTuple - startExecuteTuple;
+          long deserializationLatency = startExecuteTuple - startDeserializationTuple;
 
           // Invoke user-defined execute task hook
           topologyContext.invokeHookBoltExecute(t, Duration.ofNanos(executeLatency));
 
           // Update metrics
+          boltMetrics.deserializeDataTuple(stream.getId(), stream.getComponentName(), deserializationLatency);
           boltMetrics.executeTuple(stream.getId(), stream.getComponentName(), executeLatency);
         }
 

@@ -109,16 +109,19 @@ public class FullBoltMetrics extends BoltMetrics {
       failCount.scope(streamId);
       executeCount.scope(streamId);
       executeTimeNs.scope(streamId);
+      deserializationTimeNs.scope(streamId);
 
       ackCount.scope(globalStreamId);
       failCount.scope(globalStreamId);
       executeCount.scope(globalStreamId);
       executeTimeNs.scope(globalStreamId);
+      deserializationTimeNs.scope(globalStreamId);
     }
     List<TopologyAPI.OutputStream> outputs = helper.getMyBolt().getOutputsList();
     for (TopologyAPI.OutputStream outputStream : outputs) {
       String streamId = outputStream.getStream().getId();
       emitCount.scope(streamId);
+      serializationTimeNs.scope(streamId);
     }
   }
 
