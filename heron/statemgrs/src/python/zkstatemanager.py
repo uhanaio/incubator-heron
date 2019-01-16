@@ -18,16 +18,16 @@
 import sys
 from six import reraise as raise_
 
-from org_uhana_heron.heron.proto.execution_state import ExecutionState
-from org_uhana_heron.heron.proto.packing_plan import PackingPlan
-from org_uhana_heron.heron.proto.physical_plan import PhysicalPlan
-from org_uhana_heron.heron.proto.scheduler import SchedulerLocation
-from org_uhana_heron.heron.proto.tmaster import TMasterLocation
-from org_uhana_heron.heron.proto.topology import Topology
+from io_uhana_heron.heron.proto.execution_state import ExecutionState
+from io_uhana_heron.heron.proto.packing_plan import PackingPlan
+from io_uhana_heron.heron.proto.physical_plan import PhysicalPlan
+from io_uhana_heron.heron.proto.scheduler import SchedulerLocation
+from io_uhana_heron.heron.proto.tmaster import TMasterLocation
+from io_uhana_heron.heron.proto.topology import Topology
 
-from org_uhana_heron.heron.statemgrs.src.python.log import Log as LOG
-from org_uhana_heron.heron.statemgrs.src.python.statemanager import StateManager
-from org_uhana_heron.heron.statemgrs.src.python.stateexceptions import StateException
+from io_uhana_heron.heron.statemgrs.src.python.log import Log as LOG
+from io_uhana_heron.heron.statemgrs.src.python.statemanager import StateManager
+from io_uhana_heron.heron.statemgrs.src.python.stateexceptions import StateException
 
 from kazoo.client import KazooClient
 from kazoo.exceptions import NodeExistsError
