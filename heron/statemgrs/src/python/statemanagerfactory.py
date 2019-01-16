@@ -24,9 +24,9 @@ Returns these state managers.
 import os
 
 
-from heron.statemgrs.src.python.filestatemanager import FileStateManager
-from heron.statemgrs.src.python.log import Log as LOG
-from heron.statemgrs.src.python.zkstatemanager import ZkStateManager
+from io_uhana_heron.heron.statemgrs.src.python.filestatemanager import FileStateManager
+from io_uhana_heron.heron.statemgrs.src.python.log import Log as LOG
+from io_uhana_heron.heron.statemgrs.src.python.zkstatemanager import ZkStateManager
 
 def get_all_state_managers(conf):
   """

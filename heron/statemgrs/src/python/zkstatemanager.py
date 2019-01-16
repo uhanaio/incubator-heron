@@ -18,16 +18,16 @@
 import sys
 from six import reraise as raise_
 
-from heron.proto.execution_state_pb2 import ExecutionState
-from heron.proto.packing_plan_pb2 import PackingPlan
-from heron.proto.physical_plan_pb2 import PhysicalPlan
-from heron.proto.scheduler_pb2 import SchedulerLocation
-from heron.proto.tmaster_pb2 import TMasterLocation
-from heron.proto.topology_pb2 import Topology
+from io_uhana_heron.heron.proto.execution_state import ExecutionState
+from io_uhana_heron.heron.proto.packing_plan import PackingPlan
+from io_uhana_heron.heron.proto.physical_plan import PhysicalPlan
+from io_uhana_heron.heron.proto.scheduler import SchedulerLocation
+from io_uhana_heron.heron.proto.tmaster import TMasterLocation
+from io_uhana_heron.heron.proto.topology import Topology
 
-from heron.statemgrs.src.python.log import Log as LOG
-from heron.statemgrs.src.python.statemanager import StateManager
-from heron.statemgrs.src.python.stateexceptions import StateException
+from io_uhana_heron.heron.statemgrs.src.python.log import Log as LOG
+from io_uhana_heron.heron.statemgrs.src.python.statemanager import StateManager
+from io_uhana_heron.heron.statemgrs.src.python.stateexceptions import StateException
 
 from kazoo.client import KazooClient
 from kazoo.exceptions import NodeExistsError

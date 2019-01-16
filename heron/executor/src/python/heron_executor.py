@@ -34,13 +34,13 @@ import yaml
 import socket
 import traceback
 
-from heron.common.src.python.utils import log
-from heron.common.src.python.utils import proc
+from io_uhana_heron.heron.common.src.python.utils import log
+from io_uhana_heron.heron.common.src.python.utils import proc
 # pylint: disable=unused-import,too-many-lines
-from heron.proto.packing_plan_pb2 import PackingPlan
-from heron.statemgrs.src.python import statemanagerfactory
-from heron.statemgrs.src.python import configloader
-from heron.statemgrs.src.python.config import Config as StateMgrConfig
+from io_uhana_heron.heron.proto.packing_plan import PackingPlan
+from io_uhana_heron.heron.statemgrs.src.python import statemanagerfactory
+from io_uhana_heron.heron.statemgrs.src.python import configloader
+from io_uhana_heron.heron.statemgrs.src.python.config import Config as StateMgrConfig
 
 Log = log.Log
 
