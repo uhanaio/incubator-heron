@@ -20,14 +20,14 @@ import threading
 
 from collections import defaultdict
 
-from heron.statemgrs.src.python.statemanager import StateManager
+from org_uhana_heron.heron.statemgrs.src.python.statemanager import StateManager
 
-from heron.proto.execution_state_pb2 import ExecutionState
-from heron.proto.packing_plan_pb2 import PackingPlan
-from heron.proto.physical_plan_pb2 import PhysicalPlan
-from heron.proto.scheduler_pb2 import SchedulerLocation
-from heron.proto.tmaster_pb2 import TMasterLocation
-from heron.proto.topology_pb2 import Topology
+from org_uhana_heron.heron.proto.execution_state import ExecutionState
+from org_uhana_heron.heron.proto.packing_plan import PackingPlan
+from org_uhana_heron.heron.proto.physical_plan import PhysicalPlan
+from org_uhana_heron.heron.proto.scheduler import SchedulerLocation
+from org_uhana_heron.heron.proto.tmaster import TMasterLocation
+from org_uhana_heron.heron.proto.topology import Topology
 
 # pylint: disable=too-many-instance-attributes
 class FileStateManager(StateManager):
