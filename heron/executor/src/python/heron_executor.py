@@ -76,7 +76,10 @@ def print_usage():
       " --checkpoint-manager-port=<ckptmgr_port> --stateful-config-file=<stateful_config_file>"
       " --health-manager-mode=<healthmgr_mode> --health-manager-classpath=<healthmgr_classpath>"
       " --cpp-instance-binary=<cpp_instance_binary>"
-      " --jvm-remote-debugger-ports=<comma_seperated_port_list>")
+      " --jvm-remote-debugger-ports=<comma_seperated_port_list>"
+      " --enable-gc-logging=<true|false>"
+      " --gc-log-file-size=<size_in_MB"
+      " --gc-num-log-files=<num_rotated_files>")
 
 def id_map(prefix, container_plans, add_zero_id=False):
   ids = {}
@@ -245,6 +248,10 @@ class HeronExecutor(object):
       parsed_args.jvm_remote_debugger_ports.split(",") \
         if parsed_args.jvm_remote_debugger_ports else None
 
+    self.enable_gc_logging = parsed_args.enable_gc_logging
+    self.gc_log_file_size = parsed_args.gc_log_file_size
+    self.gc_num_log_files = parsed_args.gc_num_log_files
+
   def __init__(self, args, shell_env):
     self.init_parsed_args(args)
 
@@ -321,6 +328,10 @@ class HeronExecutor(object):
     parser.add_argument("--jvm-remote-debugger-ports", required=False,
                         help="ports to be used by a remote debugger for JVM instances")
 
+    parser.add_argument("--enable-gc-logging", type=bool, default=False)
+    parser.add_argument("--gc-log-file-size", type=int, default=10)
+    parser.add_argument("--gc-num-log-files", type=int, default=5)
+
     parsed_args, unknown_args = parser.parse_known_args(args[1:])
 
     if unknown_args:
@@ -372,6 +383,20 @@ class HeronExecutor(object):
       heron_internals_config = yaml.load(stream)
     return heron_internals_config['heron.logging.directory']
 
+  def _gc_logging_flags(self, name):
+      return ['-verbosegc',
+              '-XX:+PrintGCDetails',
+              '-XX:+PrintGCTimeStamps',
+              '-XX:+PrintGCDateStamps',
+              '-XX:+PrintGCCause',
+              '-XX:+UseGCLogFileRotation',
+              '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
+              '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
+              '-XX:+PrintPromotionFailure',
+              '-XX:+PrintTenuringDistribution',
+              '-XX:+PrintHeapAtGC',
+              '-Xloggc:log-files/gc.%s.log' % name]
+
   def _get_metricsmgr_cmd(self, metricsManagerId, sink_config_file, port):
     ''' get the command to start the metrics manager processes '''
     metricsmgr_main_class = 'com.twitter.heron.metricsmgr.MetricsManager'
@@ -381,35 +406,27 @@ class HeronExecutor(object):
                       # for instance, the default -Xmx in Twitter mesos machine is around 18GB
                       '-Xmx1024M',
                       '-XX:+PrintCommandLineFlags',
-                      '-verbosegc',
-                      '-XX:+PrintGCDetails',
-                      '-XX:+PrintGCTimeStamps',
-                      '-XX:+PrintGCDateStamps',
-                      '-XX:+PrintGCCause',
-                      '-XX:+UseGCLogFileRotation',
-                      '-XX:NumberOfGCLogFiles=5',
-                      '-XX:GCLogFileSize=100M',
-                      '-XX:+PrintPromotionFailure',
-                      '-XX:+PrintTenuringDistribution',
-                      '-XX:+PrintHeapAtGC',
                       '-XX:+HeapDumpOnOutOfMemoryError',
                       '-XX:+UseConcMarkSweepGC',
-                      '-XX:+PrintCommandLineFlags',
-                      '-Xloggc:log-files/gc.metricsmgr.log',
-                      '-Djava.net.preferIPv4Stack=true',
-                      '-cp',
-                      self.metrics_manager_classpath,
-                      metricsmgr_main_class,
-                      '--id=' + metricsManagerId,
-                      '--port=' + str(port),
-                      '--topology=' + self.topology_name,
-                      '--cluster=' + self.cluster,
-                      '--role=' + self.role,
-                      '--environment=' + self.environment,
-                      '--topology-id=' + self.topology_id,
-                      '--system-config-file=' + self.heron_internals_config_file,
-                      '--override-config-file=' + self.override_config_file,
-                      '--sink-config-file=' + sink_config_file]
+                      '-XX:+PrintCommandLineFlags']
+
+    if self.enable_gc_logging:
+        metricsmgr_cmd.extend(self._gc_logging_flags('metricsmgr'))
+
+    metricsmgr_cmd.extend(['-Djava.net.preferIPv4Stack=true',
+                           '-cp',
+                           self.metrics_manager_classpath,
+                           metricsmgr_main_class,
+                           '--id=' + metricsManagerId,
+                           '--port=' + str(port),
+                           '--topology=' + self.topology_name,
+                           '--cluster=' + self.cluster,
+                           '--role=' + self.role,
+                           '--environment=' + self.environment,
+                           '--topology-id=' + self.topology_id,
+                           '--system-config-file=' + self.heron_internals_config_file,
+                           '--override-config-file=' + self.override_config_file,
+                           '--sink-config-file=' + sink_config_file])
 
     return metricsmgr_cmd
 
@@ -561,21 +578,12 @@ class HeronExecutor(object):
                       '-XX:+CMSScavengeBeforeRemark',
                       '-XX:TargetSurvivorRatio=90',
                       '-XX:+PrintCommandLineFlags',
-                      '-verbosegc',
-                      '-XX:+PrintGCDetails',
-                      '-XX:+PrintGCTimeStamps',
-                      '-XX:+PrintGCDateStamps',
-                      '-XX:+PrintGCCause',
-                      '-XX:+UseGCLogFileRotation',
-                      '-XX:NumberOfGCLogFiles=5',
-                      '-XX:GCLogFileSize=100M',
-                      '-XX:+PrintPromotionFailure',
-                      '-XX:+PrintTenuringDistribution',
-                      '-XX:+PrintHeapAtGC',
                       '-XX:+HeapDumpOnOutOfMemoryError',
                       '-XX:+UseConcMarkSweepGC',
-                      '-XX:ParallelGCThreads=4',
-                      '-Xloggc:log-files/gc.%s.log' % instance_id]
+                      '-XX:ParallelGCThreads=4']
+
+      if self.enable_gc_logging:
+          instance_cmd.extend(self._gc_logging_flags(instance_id))
 
       remote_debugger_port = None
       if self.jvm_remote_debugger_ports:
@@ -746,31 +754,22 @@ class HeronExecutor(object):
     ckptmgr_cmd = [os.path.join(self.heron_java_home, "bin/java"),
                    '-Xmx1024M',
                    '-XX:+PrintCommandLineFlags',
-                   '-verbosegc',
-                   '-XX:+PrintGCDetails',
-                   '-XX:+PrintGCTimeStamps',
-                   '-XX:+PrintGCDateStamps',
-                   '-XX:+PrintGCCause',
-                   '-XX:+UseGCLogFileRotation',
-                   '-XX:NumberOfGCLogFiles=5',
-                   '-XX:GCLogFileSize=100M',
-                   '-XX:+PrintPromotionFailure',
-                   '-XX:+PrintTenuringDistribution',
-                   '-XX:+PrintHeapAtGC',
                    '-XX:+HeapDumpOnOutOfMemoryError',
-                   '-XX:+UseConcMarkSweepGC',
-                   '-XX:+UseConcMarkSweepGC',
-                   '-Xloggc:log-files/gc.ckptmgr.log',
-                   '-Djava.net.preferIPv4Stack=true',
-                   '-cp',
-                   self.checkpoint_manager_classpath,
-                   ckptmgr_main_class,
-                   '-t' + self.topology_name,
-                   '-i' + self.topology_id,
-                   '-c' + self.ckptmgr_ids[self.shard],
-                   '-p' + self.checkpoint_manager_port,
-                   '-f' + self.stateful_config_file,
-                   '-g' + self.heron_internals_config_file]
+                   '-XX:+UseConcMarkSweepGC']
+
+    if self.enable_gc_logging:
+        ckptmgr_cmd.extend(self._gc_logging_flags('ckptmgr'))
+
+    ckptmgr_cmd.extend(['-Djava.net.preferIPv4Stack=true',
+                        '-cp',
+                        self.checkpoint_manager_classpath,
+                        ckptmgr_main_class,
+                        '-t' + self.topology_name,
+                        '-i' + self.topology_id,
+                        '-c' + self.ckptmgr_ids[self.shard],
+                        '-p' + self.checkpoint_manager_port,
+                        '-f' + self.stateful_config_file,
+                        '-g' + self.heron_internals_config_file])
     retval = {}
     retval[self.ckptmgr_ids[self.shard]] = ckptmgr_cmd
 
