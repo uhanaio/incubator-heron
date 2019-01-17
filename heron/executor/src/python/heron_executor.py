@@ -78,7 +78,7 @@ def print_usage():
       " --cpp-instance-binary=<cpp_instance_binary>"
       " --jvm-remote-debugger-ports=<comma_seperated_port_list>"
       " --enable-gc-logging=<true|false>"
-      " --gc-log-file-size=<size_in_MB"
+      " --gc-log-file-size=<size_in_MB>"
       " --gc-num-log-files=<num_rotated_files>")
 
 def id_map(prefix, container_plans, add_zero_id=False):
