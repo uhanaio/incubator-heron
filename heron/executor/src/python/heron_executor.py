@@ -580,7 +580,6 @@ class HeronExecutor(object):
                       '-XX:+PrintPromotionFailure',
                       '-XX:+PrintTenuringDistribution',
                       '-XX:+PrintHeapAtGC',
-                      '-XX:+HeapDumpOnOutOfMemoryError',
                       '-XX:+UseConcMarkSweepGC',
                       '-XX:ParallelGCThreads=4',
                       '-Xloggc:log-files/gc.%s.log' % instance_id]
