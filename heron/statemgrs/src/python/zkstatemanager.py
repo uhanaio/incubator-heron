@@ -18,12 +18,12 @@
 import sys
 from six import reraise as raise_
 
-from io_uhana_heron.heron.proto.execution_state import ExecutionState
-from io_uhana_heron.heron.proto.packing_plan import PackingPlan
-from io_uhana_heron.heron.proto.physical_plan import PhysicalPlan
-from io_uhana_heron.heron.proto.scheduler import SchedulerLocation
-from io_uhana_heron.heron.proto.tmaster import TMasterLocation
-from io_uhana_heron.heron.proto.topology import Topology
+from io_uhana_heron.heron.proto.execution_state__pb2 import ExecutionState
+from io_uhana_heron.heron.proto.packing_plan__pb2 import PackingPlan
+from io_uhana_heron.heron.proto.physical_plan__pb2 import PhysicalPlan
+from io_uhana_heron.heron.proto.scheduler__pb2 import SchedulerLocation
+from io_uhana_heron.heron.proto.tmaster__pb2 import TMasterLocation
+from io_uhana_heron.heron.proto.topology__pb2 import Topology
 
 from io_uhana_heron.heron.statemgrs.src.python.log import Log as LOG
 from io_uhana_heron.heron.statemgrs.src.python.statemanager import StateManager
