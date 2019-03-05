@@ -391,19 +391,9 @@ class HeronExecutor(object):
                       '-XX:+PrintCommandLineFlags',
                       '-verbosegc',
                       '-XX:+PrintGCDetails',
-                      # '-XX:+PrintGCTimeStamps',
-                      # '-XX:+PrintGCDateStamps',
-                      # '-XX:+PrintGCCause',
-                      # '-XX:+UseGCLogFileRotation',
-                      # '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
-                      # '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
-                      # '-XX:+PrintPromotionFailure',
-                      # '-XX:+PrintTenuringDistribution',
-                      '-XX:+PrintHeapAtGC',
                       '-XX:+HeapDumpOnOutOfMemoryError',
                       '-XX:+UseConcMarkSweepGC',
-                      # '-XX:+PrintCommandLineFlags',
-                      '-Xloggc:log-files/gc.metricsmgr.log',
+                      '-Xlog:gc*=debug:file=log-files/gc.metricsmgr.log:uptime,time:filecount=%d,filesize=%dM' % (self.gc_num_log_files, self.gc_log_file_size),
                       '-Djava.net.preferIPv4Stack=true',
                       '-cp',
                       self.metrics_manager_classpath,
@@ -562,10 +552,9 @@ class HeronExecutor(object):
                       '-XX:+PrintCommandLineFlags',
                       '-verbosegc',
                       '-XX:+PrintGCDetails',
-                      '-XX:+PrintHeapAtGC',
                       '-XX:+UseConcMarkSweepGC',
                       '-XX:ParallelGCThreads=4',
-                      '-Xloggc:log-files/gc.%s.log' % instance_id]
+                      '-Xlog:gc*=debug:file=log-files/gc.%s.log:uptime,time:filecount=%d,filesize=%dM' % (instance_id, self.gc_num_log_files, self.gc_log_file_size)]
 
       remote_debugger_port = None
       if self.jvm_remote_debugger_ports:
