@@ -21,6 +21,7 @@ import atexit
 import base64
 import functools
 import json
+import logging
 import os
 import random
 import signal
@@ -37,7 +38,7 @@ import traceback
 from io_uhana_heron.heron.common.src.python.utils import log
 from io_uhana_heron.heron.common.src.python.utils import proc
 # pylint: disable=unused-import,too-many-lines
-from io_uhana_heron.heron.proto.packing_plan import PackingPlan
+from io_uhana_heron.heron.proto.packing_plan__pb2 import PackingPlan
 from io_uhana_heron.heron.statemgrs.src.python import statemanagerfactory
 from io_uhana_heron.heron.statemgrs.src.python import configloader
 from io_uhana_heron.heron.statemgrs.src.python.config import Config as StateMgrConfig
@@ -1058,7 +1059,9 @@ def main():
   def setup(shardid):
     # Redirect stdout and stderr to files in append mode
     # The filename format is heron-executor-<container_id>.stdxxx
-    log.configure(logfile='heron-executor-%s.stdout' % shardid)
+    log.init_rotating_logger(level=logging.INFO,
+                             logfile='heron-executor-%s.stdout' % shardid,
+                             max_files=5, max_bytes=20 * 1024 * 1024)
 
     pid = os.getpid()
     sid = os.getsid(pid)
