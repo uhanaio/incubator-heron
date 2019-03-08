@@ -21,6 +21,7 @@ import atexit
 import base64
 import functools
 import json
+import logging
 import os
 import random
 import signal
@@ -1030,7 +1031,8 @@ def main():
   def setup(shardid):
     # Redirect stdout and stderr to files in append mode
     # The filename format is heron-executor-<container_id>.stdxxx
-    log.init_rotating_logger(logfile='heron-executor-%s.stdout' % shardid,
+    log.init_rotating_logger(level=logging.INFO,
+                             logfile='heron-executor-%s.stdout' % shardid,
                              max_files=5, max_bytes=20 * 1024 * 1024)
 
     pid = os.getpid()
