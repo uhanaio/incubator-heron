@@ -100,8 +100,8 @@ public class PrometheusSink extends AbstractWebSink {
         final String metricName;
         final String metricInstanceId;
 
-        String labelKey;
-        String labelValue;
+        String labelKey = null;
+        String labelValue = null;
 
         if (componentIsStreamManger) {
           final boolean metricHasInstanceId = metric.contains("_by_");
