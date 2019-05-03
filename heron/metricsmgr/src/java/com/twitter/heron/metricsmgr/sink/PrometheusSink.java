@@ -116,6 +116,7 @@ public class PrometheusSink extends AbstractWebSink {
             metricName = metricParts[0];
             labelKey = metricParts[1];
             labelValue = metricParts[2];
+            metricInstanceId = null;
           } else {
             metricName = metric;
             metricInstanceId = null;
