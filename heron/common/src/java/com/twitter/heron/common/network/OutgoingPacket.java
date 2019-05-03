@@ -15,6 +15,7 @@
 package com.twitter.heron.common.network;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Level;
@@ -77,7 +78,7 @@ public class OutgoingPacket {
     buffer.put(message.toByteArray());
 
     // Make the buffer ready for writing out
-    buffer.flip();
+    ((Buffer) buffer).flip();
   }
 
   public static int sizeRequiredToPackString(String str) {
