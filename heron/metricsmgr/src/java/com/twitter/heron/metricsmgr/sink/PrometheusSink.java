@@ -106,17 +106,16 @@ public class PrometheusSink extends AbstractWebSink {
         if (componentIsStreamManger) {
           final boolean metricHasInstanceId = metric.contains("_by_");
           final String[] metricParts = metric.split("/");
-          if (metricHasInstanceId && metricParts.length == 4) {
-            metricName = metricParts[0];
-            metricInstanceId = metricParts[1];
-            labelKey = metricParts[2];
-            labelValue = metricParts[3];
-          } else if (metricHasInstanceId && metricParts.length == 3) {
+          if (metricHasInstanceId && metricParts.length == 3) {
             metricName = String.format("%s_%s", metricParts[0], metricParts[2]);
             metricInstanceId = metricParts[1];
           } else if (metricHasInstanceId && metricParts.length == 2) {
             metricName = metricParts[0];
             metricInstanceId = metricParts[1];
+          } else if (metricParts.length == 3) {
+            metricName = metricParts[0];
+            labelKey = metricParts[1];
+            labelValue = metricParts[2];
           } else {
             metricName = metric;
             metricInstanceId = null;
