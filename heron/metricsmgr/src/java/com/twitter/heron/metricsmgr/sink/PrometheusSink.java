@@ -149,7 +149,7 @@ public class PrometheusSink extends AbstractWebSink {
 
         if (labelKey != null && labelValue != null) {
           sb.append(",")
-              .append(labelKey)
+              .append(Prometheus.sanitizeMetricName(labelKey))
               .append("=\"")
               .append(labelValue)
               .append("\"");
