@@ -15,6 +15,7 @@
 package com.twitter.heron.common.network;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Level;
@@ -71,7 +72,7 @@ public class IncomingPacket {
       }
       // We read the header fully
       headerRead = true;
-      header.flip();
+      ((Buffer) header).flip();
       int size = header.getInt();
       if (size > limit) {
         LOG.log(Level.SEVERE, "packet size " + size + " exceeds limit " + limit);
@@ -81,7 +82,7 @@ public class IncomingPacket {
     }
     int retval = readFromChannel(channel, data);
     if (retval == 0) {
-      data.flip();
+      ((Buffer) data).flip();
     }
     return retval;
   }
