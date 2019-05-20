@@ -34,7 +34,7 @@ def jarjar_binary_impl(ctx):
 
 jarjar_attrs = {
     "src": attr.label(
-        allow_files = True,
+        allow_files = [".jar"],
         single_file = True,
     ),
     "shade": attr.label(
