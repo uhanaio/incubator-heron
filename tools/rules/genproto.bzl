@@ -61,15 +61,18 @@ def genproto_java_impl(ctx):
 
   return struct(files = depset([srcjar]))
 
+genproto_java_attrs = dict(genproto_base_attrs)
+genproto_java_attrs.update({
+    "_protoc": attr.label(
+        default = Label("@com_google_protobuf//:protoc"),
+        allow_files = True,
+        single_file = True,
+    ),
+})
+
 genproto_java = rule(
     genproto_java_impl,
-    attrs = genproto_base_attrs + {
-        "_protoc": attr.label(
-            default = Label("@com_google_protobuf//:protoc"),
-            allow_files = True,
-            single_file = True,
-        ),
-    },
+    attrs = genproto_java_attrs,
 )
 
 def proto_library(name, src=None, includes=[], deps=[], visibility=None,
