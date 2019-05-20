@@ -44,8 +44,16 @@ Lastly, make sure that `tools/build_rules/BUILD` exists, even if it is empty,
 so that Bazel can find your `prelude_bazel` file.
 """
 
-pex_file_types = FileType(types=[".py"])
-egg_file_types = FileType(types=[".egg", ".whl"])
+def filter_files(files, extensions=[]):
+    result = []
+    for f in files:
+        for e in extensions:
+            if f.basename.endswith(e):
+                result.append(f)
+    return result
+
+pex_file_type_exts = [".py"]
+egg_file_type_exts = [".egg", ".whl"]
 
 # As much as I think this test file naming convention is a good thing, it's
 # probably a bad idea to impose it as a policy to all OSS users of these rules,
@@ -55,20 +63,22 @@ egg_file_types = FileType(types=[".egg", ".whl"])
 
 
 def _collect_transitive_sources(ctx):
-  source_files = depset(order="postorder")
+  deps = []
   for dep in ctx.attr.deps:
-    source_files += dep.py.transitive_sources
-  source_files += pex_file_types.filter(ctx.files.srcs)
-  return source_files
+    deps += dep.py.transitive_sources.to_list()
+  return depset(filter_files(ctx.files.srcs, pex_file_type_exts),
+                transitive=[depset(deps)],
+                order="postorder")
 
 
 def _collect_transitive_eggs(ctx):
-  transitive_eggs = depset(order="postorder")
+  deps = []
   for dep in ctx.attr.deps:
     if hasattr(dep.py, "transitive_eggs"):
-      transitive_eggs += dep.py.transitive_eggs
-  transitive_eggs += egg_file_types.filter(ctx.files.eggs)
-  return transitive_eggs
+      deps += dep.py.transitive_eggs.to_list()
+  return depset(filter_files(ctx.files.eggs, egg_file_type_exts),
+                transitive=[depset(deps)],
+                order="postorder")
 
 
 def _collect_transitive_reqs(ctx):
@@ -162,7 +172,8 @@ def _pex_binary_impl(ctx):
   elif ctx.file.main:
     main_file = ctx.file.main
   else:
-    main_file = pex_file_types.filter(ctx.files.srcs)[0]
+    pex_file_type_sources = filter_files(ctx.files.srcs, pex_file_type_exts)
+    main_file = pex_file_type_sources[0]
   if main_file:
     # Translate main_file's short path into a python module name
     main_pkg = main_file.short_path.replace('/', '.')[:-3]
@@ -298,11 +309,11 @@ def _pex_pytest_impl(ctx):
 
 pex_attrs = {
     "srcs": attr.label_list(flags = ["DIRECT_COMPILE_TIME_INPUT"],
-                            allow_files = pex_file_types),
+                            allow_files = pex_file_type_exts),
     "deps": attr.label_list(allow_files = False,
                             providers = ["py"]),
     "eggs": attr.label_list(flags = ["DIRECT_COMPILE_TIME_INPUT"],
-                            allow_files = egg_file_types),
+                            allow_files = egg_file_type_exts),
     "reqs": attr.string_list(),
     "data": attr.label_list(allow_files = True),
 
