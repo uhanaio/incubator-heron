@@ -22,7 +22,7 @@ def proto_package_impl(ctx):
 
 genproto_base_attrs = {
     "src": attr.label(
-        allow_files = FileType([".proto"]),
+        allow_files = [".proto"],
         single_file = True,
     ),
     "deps": attr.label_list(
