@@ -29,6 +29,7 @@ def jarjar_binary_impl(ctx):
           output_jar = class_jar,
           compile_jar = class_jar,
       ),
+      DefaultInfo(files = depset([ctx.outputs.jar])),
   ]
 
 jarjar_attrs = {
