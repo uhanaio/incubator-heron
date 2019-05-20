@@ -44,7 +44,7 @@ Lastly, make sure that `tools/build_rules/BUILD` exists, even if it is empty,
 so that Bazel can find your `prelude_bazel` file.
 """
 
-def filter_files(files, extensions=[]):
+def _filter_files(files, extensions=[]):
     result = []
     for f in files:
         for e in extensions:
@@ -66,7 +66,7 @@ def _collect_transitive_sources(ctx):
   deps = []
   for dep in ctx.attr.deps:
     deps += dep.py.transitive_sources.to_list()
-  return depset(filter_files(ctx.files.srcs, pex_file_type_exts),
+  return depset(_filter_files(ctx.files.srcs, pex_file_type_exts),
                 transitive=[depset(deps)],
                 order="postorder")
 
@@ -76,7 +76,7 @@ def _collect_transitive_eggs(ctx):
   for dep in ctx.attr.deps:
     if hasattr(dep.py, "transitive_eggs"):
       deps += dep.py.transitive_eggs.to_list()
-  return depset(filter_files(ctx.files.eggs, egg_file_type_exts),
+  return depset(_filter_files(ctx.files.eggs, egg_file_type_exts),
                 transitive=[depset(deps)],
                 order="postorder")
 
@@ -172,7 +172,7 @@ def _pex_binary_impl(ctx):
   elif ctx.file.main:
     main_file = ctx.file.main
   else:
-    pex_file_type_sources = filter_files(ctx.files.srcs, pex_file_type_exts)
+    pex_file_type_sources = _filter_files(ctx.files.srcs, pex_file_type_exts)
     main_file = pex_file_type_sources[0]
   if main_file:
     # Translate main_file's short path into a python module name
