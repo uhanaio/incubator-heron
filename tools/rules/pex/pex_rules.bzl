@@ -77,7 +77,7 @@ def _collect_transitive_reqs(ctx):
   deps = []
   for dep in ctx.attr.deps:
     if hasattr(dep.py, "transitive_reqs"):
-      transitive_reqs += dep.py.transitive_reqs.to_list()
+      deps += dep.py.transitive_reqs.to_list()
   return depset(ctx.attr.reqs,
                 transitive=[depset(deps)],
                 order="postorder")
@@ -95,9 +95,9 @@ def _collect_transitive(ctx):
 
 
 def _pex_library_impl(ctx):
-  transitive_files = depset(ctx.files.srcs)
+  transitive_files = list(ctx.files.srcs)
   for dep in ctx.attr.deps:
-    transitive_files += dep.default_runfiles.files
+    transitive_files += dep.default_runfiles.files.to_list()
   return struct(
       files = depset(),
       py = _collect_transitive(ctx),
@@ -163,7 +163,7 @@ def _pex_binary_impl(ctx):
   elif ctx.file.main:
     main_file = ctx.file.main
   else:
-    main_file = ctx.files.srcs.to_list()[0]
+    main_file = ctx.files.srcs[0]
 
   transitive_files = list(ctx.files.srcs)
   if main_file:
@@ -177,11 +177,11 @@ def _pex_binary_impl(ctx):
   py = _collect_transitive(ctx)
 
   for dep in ctx.attr.deps:
-    transitive_files += dep.default_runfiles.files
+    transitive_files += dep.default_runfiles.files.to_list()
 
   runfiles = ctx.runfiles(
       collect_default = True,
-      transitive_files = transitive_files,
+      transitive_files = depset(transitive_files),
   )
 
   resources = ctx.files.resources
