@@ -74,12 +74,13 @@ def _collect_transitive_eggs(ctx):
 
 
 def _collect_transitive_reqs(ctx):
-  transitive_reqs = depset(order="postorder")
+  deps = []
   for dep in ctx.attr.deps:
     if hasattr(dep.py, "transitive_reqs"):
-      transitive_reqs += dep.py.transitive_reqs
-  transitive_reqs += ctx.attr.reqs
-  return transitive_reqs
+      transitive_reqs += dep.py.transitive_reqs.to_list()
+  return depset(ctx.attr.reqs,
+                transitive=[depset(deps)],
+                order="postorder")
 
 
 def _collect_transitive(ctx):
