@@ -44,14 +44,6 @@ Lastly, make sure that `tools/build_rules/BUILD` exists, even if it is empty,
 so that Bazel can find your `prelude_bazel` file.
 """
 
-def _filter_files(files, extensions=[]):
-    result = []
-    for f in files:
-        for e in extensions:
-            if f.basename.endswith(e):
-                result.append(f)
-    return result
-
 pex_file_type_exts = [".py"]
 egg_file_type_exts = [".egg", ".whl"]
 
@@ -66,7 +58,7 @@ def _collect_transitive_sources(ctx):
   deps = []
   for dep in ctx.attr.deps:
     deps += dep.py.transitive_sources.to_list()
-  return depset(_filter_files(ctx.files.srcs, pex_file_type_exts),
+  return depset(ctx.files.srcs,
                 transitive=[depset(deps)],
                 order="postorder")
 
@@ -76,7 +68,7 @@ def _collect_transitive_eggs(ctx):
   for dep in ctx.attr.deps:
     if hasattr(dep.py, "transitive_eggs"):
       deps += dep.py.transitive_eggs.to_list()
-  return depset(_filter_files(ctx.files.eggs, egg_file_type_exts),
+  return depset(ctx.files.eggs,
                 transitive=[depset(deps)],
                 order="postorder")
 
@@ -162,8 +154,6 @@ def _gen_manifest(py, runfiles, resources):
 
 
 def _pex_binary_impl(ctx):
-  transitive_files = depset(ctx.files.srcs)
-
   if ctx.attr.entrypoint and ctx.file.main:
     fail("Please specify either entrypoint or main, not both.")
   if ctx.attr.entrypoint:
@@ -172,8 +162,9 @@ def _pex_binary_impl(ctx):
   elif ctx.file.main:
     main_file = ctx.file.main
   else:
-    pex_file_type_sources = _filter_files(ctx.files.srcs, pex_file_type_exts)
-    main_file = pex_file_type_sources[0]
+    main_file = ctx.files.srcs.to_list()[0]
+
+  transitive_files = list(ctx.files.srcs)
   if main_file:
     # Translate main_file's short path into a python module name
     main_pkg = main_file.short_path.replace('/', '.')[:-3]
@@ -186,6 +177,7 @@ def _pex_binary_impl(ctx):
 
   for dep in ctx.attr.deps:
     transitive_files += dep.default_runfiles.files
+
   runfiles = ctx.runfiles(
       collect_default = True,
       transitive_files = transitive_files,
