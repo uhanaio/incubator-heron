@@ -20,8 +20,8 @@ package heron.proto.stmgr;
 option java_package = "org.apache.heron.proto.stmgr";
 option java_outer_classname = "StreamManager";
 
-import "heron/proto/common.proto";
-import "heron/proto/physical_plan.proto";
+import "common.proto";
+import "physical_plan.proto";
 
 //
 // Messages sent by topologymaster
