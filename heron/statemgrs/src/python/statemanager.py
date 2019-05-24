@@ -23,7 +23,7 @@ import abc
 import socket
 import subprocess
 
-from io_uhana_heron.heron.statemgrs.src.python.log import Log as LOG
+from heron.statemgrs.src.python.log import Log as LOG
 
 HERON_EXECUTION_STATE_PREFIX = "{0}/executionstate/"
 HERON_PACKING_PLANS_PREFIX = "{0}/packingplans/"
