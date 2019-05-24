@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/stateful-restorer.h"
@@ -35,6 +38,8 @@
 
 namespace heron {
 namespace stmgr {
+
+using std::make_shared;
 
 // Stats for restore
 const sp_string METRIC_START_RESTORE = "__start_restore";
@@ -62,8 +67,8 @@ StatefulRestorer::StatefulRestorer(CkptMgrClient* _ckptmgr,
   in_progress_ = false;
   restore_done_watcher_ = _restore_done_watcher;
   metrics_manager_client_ = _metrics_manager_client;
-  multi_count_metric_ = new common::MultiCountMetric();
-  time_spent_metric_ = new common::TimeSpentMetric();
+  multi_count_metric_ = make_shared<common::MultiCountMetric>();
+  time_spent_metric_  = make_shared<common::TimeSpentMetric>();
   metrics_manager_client_->register_metric("__stateful_restore_count", multi_count_metric_);
   metrics_manager_client_->register_metric("__stateful_restore_time", time_spent_metric_);
 }
@@ -71,8 +76,6 @@ StatefulRestorer::StatefulRestorer(CkptMgrClient* _ckptmgr,
 StatefulRestorer::~StatefulRestorer() {
   metrics_manager_client_->unregister_metric("__stateful_restore_count");
   metrics_manager_client_->unregister_metric("__stateful_restore_time");
-  delete multi_count_metric_;
-  delete time_spent_metric_;
 }
 
 void StatefulRestorer::StartRestore(const std::string& _checkpoint_id, sp_int64 _restore_txid,
@@ -138,8 +141,8 @@ void StatefulRestorer::GetCheckpoints() {
 }
 
 void StatefulRestorer::HandleCheckpointState(proto::system::StatusCode _status, sp_int32 _task_id,
-                                       sp_string _checkpoint_id,
-                                       const proto::ckptmgr::InstanceStateCheckpoint& _state) {
+    sp_string _checkpoint_id,
+    const proto::ckptmgr::InstanceStateCheckpoint& _state) {
   LOG(INFO) << "Got InstanceState from checkpoint mgr for task " << _task_id
             << " and checkpoint " << _state.checkpoint_id();
   multi_count_metric_->scope(METRIC_CKPT_RESPONSES)->incr();

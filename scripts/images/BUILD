@@ -21,6 +21,7 @@ container_image(
         "/heron/heron-tools/lib/scheduler"       : "/heron/heron-core/lib/scheduler", 
         "/heron/heron-tools/lib/statemgr"        : "/heron/heron-core/lib/statemgr", 
     },
+    stamp = 1,
     directory = "/heron",
     workdir = "/heron",
     cmd = ["supervisord", "-n"]
@@ -33,7 +34,6 @@ container_push(
     registry = "index.docker.io",
     repository = "tmpscratch/heron",
     tag = '{BUILD_USER}',
-    stamp = True,
 )
 
 container_push(
@@ -43,5 +43,4 @@ container_push(
     registry = "index.docker.io",
     repository = "heron/heron",
     tag = '{BUILD_USER}',
-    stamp = True,
 )

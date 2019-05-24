@@ -22,15 +22,17 @@ addons:
       - pkg-config
       - zip
       - zlib1g-dev
+      - google-perftools
+      - libgoogle-perftools-dev
 
 env:
-  - CC=gcc-4.8 CXX=g++-4.8 CPP=cpp-4.8 CXXCPP=cpp-4.8
+  - CC=gcc-4.8 CXX=g++-4.8 CPP=cpp-4.8 CXXCPP=cpp-4.8 ENABLE_HEAPCHECK=1
 
 before_install:
   # download and install bazel
-  - wget -q 'https://github.com/bazelbuild/bazel/releases/download/0.9.0/bazel-0.9.0-installer-linux-x86_64.sh'
-  - chmod +x bazel-0.9.0-installer-linux-x86_64.sh
-  - ./bazel-0.9.0-installer-linux-x86_64.sh --user
+  - wget -q 'https://github.com/bazelbuild/bazel/releases/download/0.23.1/bazel-0.23.1-installer-linux-x86_64.sh'
+  - chmod +x bazel-0.23.1-installer-linux-x86_64.sh
+  - ./bazel-0.23.1-installer-linux-x86_64.sh --user
 
 before_script:
   # install python module for wheel files

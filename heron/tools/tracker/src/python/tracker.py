@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-# Copyright 2016 Twitter. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#  Unless required by applicable law or agreed to in writing,
+#  software distributed under the License is distributed on an
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#  KIND, either express or implied.  See the License for the
+#  specific language governing permissions and limitations
+#  under the License.
+
 ''' tracker.py '''
 import json
 import sys
@@ -25,6 +29,7 @@ from functools import partial
 from heron.common.src.python.utils.log import Log
 from heron.proto import topology_pb2
 from heron.statemgrs.src.python import statemanagerfactory
+from heron.tools.tracker.src.python.config import EXTRA_LINK_FORMATTER_KEY
 from heron.tools.tracker.src.python.topology import Topology
 from heron.tools.tracker.src.python import javaobj
 from heron.tools.tracker.src.python import pyutils
@@ -201,6 +206,13 @@ class Tracker(object):
       if not data:
         Log.debug("No data to be set")
 
+    def on_topology_packing_plan(data):
+      """watch packing plan"""
+      Log.info("Watch triggered for topology packing plan: " + topologyName)
+      topology.set_packing_plan(data)
+      if not data:
+        Log.debug("No data to be set")
+
     def on_topology_execution_state(data):
       """watch execution state"""
       Log.info("Watch triggered for topology execution state: " + topologyName)
@@ -224,6 +236,7 @@ class Tracker(object):
 
     # Set watches on the pplan, execution_state, tmaster and scheduler_location.
     state_manager.get_pplan(topologyName, on_topology_pplan)
+    state_manager.get_packing_plan(topologyName, on_topology_packing_plan)
     state_manager.get_execution_state(topologyName, on_topology_execution_state)
     state_manager.get_tmaster(topologyName, on_topology_tmaster)
     state_manager.get_scheduler_location(topologyName, on_topology_scheduler_location)
@@ -264,10 +277,14 @@ class Tracker(object):
         "has_physical_plan": None,
         "has_tmaster_location": None,
         "has_scheduler_location": None,
+        "extra_links": [],
     }
 
-    viz_url = self.config.get_formatted_viz_url(executionState)
-    executionState["viz"] = viz_url
+    for extra_link in self.config.extra_links:
+      link = extra_link.copy()
+      link["url"] = self.config.get_formatted_url(executionState,
+                                                  link[EXTRA_LINK_FORMATTER_KEY])
+      executionState["extra_links"].append(link)
     return executionState
 
   def extract_metadata(self, topology):
@@ -286,10 +303,14 @@ class Tracker(object):
         "release_username": execution_state.release_state.release_username,
         "release_tag": execution_state.release_state.release_tag,
         "release_version": execution_state.release_state.release_version,
+        "extra_links": [],
     }
-    # refactor get_formatteed_viz_url
-    viz_url = self.config.get_formatted_viz_url(metadata)
-    metadata["viz"] = viz_url
+
+    for extra_link in self.config.extra_links:
+      link = extra_link.copy()
+      link["url"] = self.config.get_formatted_url(metadata,
+                                                  link[EXTRA_LINK_FORMATTER_KEY])
+      metadata["extra_links"].append(link)
     return metadata
 
   @staticmethod
@@ -297,6 +318,8 @@ class Tracker(object):
     runtime_state = {}
     runtime_state["has_physical_plan"] = \
       True if topology.physical_plan else False
+    runtime_state["has_packing_plan"] = \
+      True if topology.packing_plan else False
     runtime_state["has_tmaster_location"] = \
       True if topology.tmaster else False
     runtime_state["has_scheduler_location"] = \
@@ -426,6 +449,7 @@ class Tracker(object):
         "spouts": {},
         "bolts": {},
         "config": {},
+        "components": {}
     }
 
     if not topology.physical_plan:
@@ -443,12 +467,21 @@ class Tracker(object):
     # Configs
     if topology.physical_plan.topology.topology_config:
       physicalPlan["config"] = convert_pb_kvs(topology.physical_plan.topology.topology_config.kvs)
+
     for spout in spouts:
       spout_name = spout.comp.name
       physicalPlan["spouts"][spout_name] = []
+      if spout_name not in physicalPlan["components"]:
+        physicalPlan["components"][spout_name] = {
+            "config": convert_pb_kvs(spout.comp.config.kvs)
+        }
     for bolt in bolts:
       bolt_name = bolt.comp.name
       physicalPlan["bolts"][bolt_name] = []
+      if bolt_name not in physicalPlan["components"]:
+        physicalPlan["components"][bolt_name] = {
+            "config": convert_pb_kvs(bolt.comp.config.kvs)
+        }
 
     for stmgr in stmgrs:
       host = stmgr.host_name
@@ -476,8 +509,10 @@ class Tracker(object):
       cwd = stmgrInfo["cwd"]
       shell_port = stmgrInfo["shell_port"]
 
-      index = int(instance.info.component_index) + 1
-      group_name = "container_%d" % index
+
+      # instance_id format container_<index>_component_1
+      # group name is container_<index>
+      group_name = instance_id.rsplit("_", 2)[0]
       igroup = instance_groups.get(group_name, list())
       igroup.append(instance_id)
       instance_groups[group_name] = igroup
@@ -497,6 +532,52 @@ class Tracker(object):
     physicalPlan["instance_groups"] = instance_groups
 
     return physicalPlan
+
+  # pylint: disable=too-many-locals
+  def extract_packing_plan(self, topology):
+    """
+    Returns the representation of packing plan that will
+    be returned from Tracker.
+    """
+    packingPlan = {
+        "id": "",
+        "container_plans": []
+    }
+
+    if not topology.packing_plan:
+      return packingPlan
+
+    container_plans = topology.packing_plan.container_plans
+
+    containers = []
+    for container_plan in container_plans:
+      instances = []
+      for instance_plan in container_plan.instance_plans:
+        instance_resources = {"cpu": instance_plan.resource.cpu,
+                              "ram": instance_plan.resource.ram,
+                              "disk": instance_plan.resource.disk}
+        instance = {"component_name" : instance_plan.component_name,
+                    "task_id" : instance_plan.task_id,
+                    "component_index": instance_plan.component_index,
+                    "instance_resources": instance_resources}
+        instances.append(instance)
+      required_resource = {"cpu": container_plan.requiredResource.cpu,
+                           "ram": container_plan.requiredResource.ram,
+                           "disk": container_plan.requiredResource.disk}
+      scheduled_resource = {}
+      if container_plan.scheduledResource:
+        scheduled_resource = {"cpu": container_plan.scheduledResource.cpu,
+                              "ram": container_plan.scheduledResource.ram,
+                              "disk": container_plan.scheduledResource.disk}
+      container = {"id": container_plan.id,
+                   "instances": instances,
+                   "required_resources": required_resource,
+                   "scheduled_resources": scheduled_resource}
+      containers.append(container)
+
+    packingPlan["id"] = topology.packing_plan.id
+    packingPlan["container_plans"] = containers
+    return json.dumps(packingPlan)
 
   def setTopologyInfo(self, topology):
     """
@@ -520,6 +601,11 @@ class Tracker(object):
     if not topology.physical_plan:
       has_physical_plan = False
 
+    Log.info("Setting topology info for topology: " + topology.name)
+    has_packing_plan = True
+    if not topology.packing_plan:
+      has_packing_plan = False
+
     has_tmaster_location = True
     if not topology.tmaster:
       has_tmaster_location = False
@@ -533,6 +619,7 @@ class Tracker(object):
         "id": topology.id,
         "logical_plan": None,
         "physical_plan": None,
+        "packing_plan": None,
         "execution_state": None,
         "tmaster_location": None,
         "scheduler_location": None,
@@ -540,6 +627,7 @@ class Tracker(object):
 
     executionState = self.extract_execution_state(topology)
     executionState["has_physical_plan"] = has_physical_plan
+    executionState["has_packing_plan"] = has_packing_plan
     executionState["has_tmaster_location"] = has_tmaster_location
     executionState["has_scheduler_location"] = has_scheduler_location
     executionState["status"] = topology.get_status()
@@ -550,6 +638,7 @@ class Tracker(object):
     topologyInfo["execution_state"] = executionState
     topologyInfo["logical_plan"] = self.extract_logical_plan(topology)
     topologyInfo["physical_plan"] = self.extract_physical_plan(topology)
+    topologyInfo["packing_plan"] = self.extract_packing_plan(topology)
     topologyInfo["tmaster_location"] = self.extract_tmaster(topology)
     topologyInfo["scheduler_location"] = self.extract_scheduler_location(topology)
 
