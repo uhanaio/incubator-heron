@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/stmgr-clientmgr.h"
@@ -31,6 +34,8 @@
 namespace heron {
 namespace stmgr {
 
+using std::make_shared;
+
 // New connections made with other stream managers.
 const sp_string METRIC_STMGR_NEW_CONNECTIONS = "__stmgr_new_connections";
 
@@ -49,14 +54,13 @@ StMgrClientMgr::StMgrClientMgr(EventLoop* eventLoop, const sp_string& _topology_
       high_watermark_(_high_watermark),
       low_watermark_(_low_watermark),
       droptuples_upon_backpressure_(_droptuples_upon_backpressure) {
-  stmgr_clientmgr_metrics_ = new heron::common::MultiCountMetric();
+  stmgr_clientmgr_metrics_ = make_shared<heron::common::MultiCountMetric>();
   metrics_manager_client_->register_metric("__clientmgr", stmgr_clientmgr_metrics_);
 }
 
 StMgrClientMgr::~StMgrClientMgr() {
   // This should not be called
   metrics_manager_client_->unregister_metric("__clientmgr");
-  delete stmgr_clientmgr_metrics_;
 }
 
 void StMgrClientMgr::StartConnections(const proto::system::PhysicalPlan* _pplan) {
@@ -138,6 +142,11 @@ bool StMgrClientMgr::SendTupleStreamMessage(sp_int32 _task_id, const sp_string& 
   out = __global_protobuf_pool_acquire__(out);
   out->set_task_id(_task_id);
   out->set_src_task_id(_msg.src_task_id());
+  sp_int32 length = 0;
+  if (_msg.has_data()) {
+    length = _msg.data().tuples_size();
+  }
+  out->set_num_tuples(length);
   _msg.SerializePartialToString(out->mutable_set());
 
   bool retval = clients_[_stmgr_id]->SendTupleStreamMessage(*out);

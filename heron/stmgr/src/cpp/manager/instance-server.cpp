@@ -1,23 +1,28 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/instance-server.h"
+
 #include <iostream>
-#include <unordered_set>
+#include <map>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include "manager/checkpoint-gateway.h"
 #include "util/neighbour-calculator.h"
@@ -29,10 +34,13 @@
 #include "network/network.h"
 #include "config/helper.h"
 #include "config/heron-internals-config-reader.h"
+#include "config/topology-config-helper.h"
 #include "metrics/metrics.h"
 
 namespace heron {
 namespace stmgr {
+
+using std::make_shared;
 
 // Num data tuples sent to instances associated with this stream manager
 const sp_string METRIC_DATA_TUPLES_TO_INSTANCES = "__tuples_to_workers";
@@ -68,18 +76,24 @@ const sp_string METRIC_TIME_SPENT_BACK_PRESSURE_AGGR = "__server/__time_spent_ba
 const sp_string METRIC_TIME_SPENT_BACK_PRESSURE_COMPID = "__time_spent_back_pressure_by_compid/";
 // Prefix for connection buffer's metrics
 const sp_string CONNECTION_BUFFER_BY_INSTANCEID = "__connection_buffer_by_instanceid/";
+// Prefix for connection buffer's length metrics. This is different
+// from METRIC_DATA_TUPLES_TO_INSTANCES as that counts
+// the tuples when they are sent to the instance -- this metric
+// will be used to count the tuples as they are received
+const sp_string CONNECTION_BUFFER_LENGTH_BY_INSTANCEID =
+  "__connection_buffer_length_by_instanceid/";
 
 // TODO(mfu): Read this value from config
 const sp_int64 SYSTEM_METRICS_SAMPLE_INTERVAL_MICROSECOND = 10_s;
 
 
 InstanceServer::InstanceServer(EventLoop* eventLoop, const NetworkOptions& _options,
-                         const sp_string& _topology_name, const sp_string& _topology_id,
-                         const sp_string& _stmgr_id,
-                         const std::vector<sp_string>& _expected_instances, StMgr* _stmgr,
-                         heron::common::MetricsMgrSt* _metrics_manager_client,
-                         NeighbourCalculator* _neighbour_calculator,
-                         bool _droptuples_upon_backpressure)
+                               const sp_string& _topology_name, const sp_string& _topology_id,
+                               const sp_string& _stmgr_id,
+                               const std::vector<sp_string>& _expected_instances, StMgr* _stmgr,
+                               heron::common::MetricsMgrSt* _metrics_manager_client,
+                               NeighbourCalculator* _neighbour_calculator,
+                               bool _droptuples_upon_backpressure)
     : Server(eventLoop, _options),
       topology_name_(_topology_name),
       topology_id_(_topology_id),
@@ -95,8 +109,8 @@ InstanceServer::InstanceServer(EventLoop* eventLoop, const NetworkOptions& _opti
   InstallMessageHandler(&InstanceServer::HandleStoreInstanceStateCheckpointMessage);
   InstallMessageHandler(&InstanceServer::HandleRestoreInstanceStateResponse);
 
-  instance_server_metrics_ = new heron::common::MultiCountMetric();
-  back_pressure_metric_aggr_ = new heron::common::TimeSpentMetric();
+  instance_server_metrics_ = make_shared<heron::common::MultiCountMetric>();
+  back_pressure_metric_aggr_ = make_shared<heron::common::TimeSpentMetric>();
   metrics_manager_client_->register_metric("__server", instance_server_metrics_);
   metrics_manager_client_->register_metric(METRIC_TIME_SPENT_BACK_PRESSURE_AGGR,
                                            back_pressure_metric_aggr_);
@@ -121,8 +135,10 @@ InstanceServer::~InstanceServer() {
   Stop();
   // Unregister and delete the metrics.
   for (auto immIter = instance_metric_map_.begin();
-      immIter != instance_metric_map_.end(); ++immIter) {
-    sp_string instance_id = immIter->first;
+            immIter != instance_metric_map_.end();
+            immIter = instance_metric_map_.erase(immIter)) {
+    const sp_string& instance_id = immIter->first;
+
     for (auto iter = instance_info_.begin(); iter != instance_info_.end(); ++iter) {
       if (iter->second->instance_->instance_id() != instance_id) continue;
       InstanceData* data = iter->second;
@@ -130,13 +146,14 @@ InstanceServer::~InstanceServer() {
       if (!iConn) break;
       sp_string metric_name = MakeBackPressureCompIdMetricName(instance_id);
       metrics_manager_client_->unregister_metric(metric_name);
-      delete immIter->second;
     }
   }
 
+  // Clean the connection_buffer_metric_map
   for (auto qmmIter = connection_buffer_metric_map_.begin();
-      qmmIter != connection_buffer_metric_map_.end(); ++qmmIter) {
+            qmmIter != connection_buffer_metric_map_.end();) {
     const sp_string& instance_id = qmmIter->first;
+
     for (auto iter = instance_info_.begin(); iter != instance_info_.end(); ++iter) {
       if (iter->second->instance_->instance_id() != instance_id) continue;
       InstanceData* data = iter->second;
@@ -144,14 +161,22 @@ InstanceServer::~InstanceServer() {
       if (!iConn) break;
       sp_string metric_name = MakeQueueSizeCompIdMetricName(instance_id);
       metrics_manager_client_->unregister_metric(metric_name);
-      delete qmmIter->second;
     }
+
+    qmmIter = connection_buffer_metric_map_.erase(qmmIter);
+  }
+
+  // Clean the connection_buffer_length_metric_map
+  for (auto qlmIter = connection_buffer_length_metric_map_.begin();
+            qlmIter != connection_buffer_length_metric_map_.end();) {
+    const sp_string& instance_id = qlmIter->first;
+    sp_string metric_name = MakeQueueLengthCompIdMetricName(instance_id);
+    metrics_manager_client_->unregister_metric(metric_name);
+    qlmIter = connection_buffer_length_metric_map_.erase(qlmIter);
   }
 
   metrics_manager_client_->unregister_metric("__server");
   metrics_manager_client_->unregister_metric(METRIC_TIME_SPENT_BACK_PRESSURE_AGGR);
-  delete instance_server_metrics_;
-  delete back_pressure_metric_aggr_;
 
   // cleanup the instance info
   for (auto iter = instance_info_.begin(); iter != instance_info_.end(); ++iter) {
@@ -184,6 +209,10 @@ sp_string InstanceServer::MakeQueueSizeCompIdMetricName(const sp_string& instanc
   return CONNECTION_BUFFER_BY_INSTANCEID + instanceid;
 }
 
+sp_string InstanceServer::MakeQueueLengthCompIdMetricName(const sp_string& instanceid) {
+  return CONNECTION_BUFFER_LENGTH_BY_INSTANCEID + instanceid;
+}
+
 void InstanceServer::UpdateQueueMetrics(EventLoop::Status) {
   for (auto itr = active_instances_.begin(); itr != active_instances_.end(); ++itr) {
     sp_int32 task_id = itr->second;
@@ -208,7 +237,7 @@ void InstanceServer::HandleConnectionClose(Connection* _conn, NetworkErrorCode) 
       remote_ends_who_caused_back_pressure_.end()) {
     _conn->unsetCausedBackPressure();
     remote_ends_who_caused_back_pressure_.erase(GetInstanceName(_conn));
-    heron::common::TimeSpentMetric* instance_metric = instance_metric_map_[GetInstanceName(_conn)];
+    auto instance_metric = instance_metric_map_[GetInstanceName(_conn)];
     instance_metric->Stop();
     if (!stmgr_->DidAnnounceBackPressure()) {
       stmgr_->SendStopBackPressureToOtherStMgrs();
@@ -235,7 +264,6 @@ void InstanceServer::HandleConnectionClose(Connection* _conn, NetworkErrorCode) 
     auto immiter = instance_metric_map_.find(instance_id);
     if (immiter != instance_metric_map_.end()) {
       metrics_manager_client_->unregister_metric(MakeBackPressureCompIdMetricName(instance_id));
-      delete instance_metric_map_[instance_id];
       instance_metric_map_.erase(instance_id);
     }
 
@@ -243,8 +271,14 @@ void InstanceServer::HandleConnectionClose(Connection* _conn, NetworkErrorCode) 
     auto qmmiter = connection_buffer_metric_map_.find(instance_id);
     if (qmmiter != connection_buffer_metric_map_.end()) {
       metrics_manager_client_->unregister_metric(MakeQueueSizeCompIdMetricName(instance_id));
-      delete connection_buffer_metric_map_[instance_id];
       connection_buffer_metric_map_.erase(instance_id);
+    }
+
+    // Clean the connection_buffer_length_metric_map_
+    auto qlmiter = connection_buffer_length_metric_map_.find(instance_id);
+    if (qlmiter != connection_buffer_length_metric_map_.end()) {
+      metrics_manager_client_->unregister_metric(MakeQueueLengthCompIdMetricName(instance_id));
+      connection_buffer_length_metric_map_.erase(instance_id);
     }
 
     stmgr_->HandleDeadInstance(task_id);
@@ -252,7 +286,7 @@ void InstanceServer::HandleConnectionClose(Connection* _conn, NetworkErrorCode) 
 }
 
 void InstanceServer::HandleRegisterInstanceRequest(REQID _reqid, Connection* _conn,
-                                                proto::stmgr::RegisterInstanceRequest* _request) {
+    proto::stmgr::RegisterInstanceRequest* _request) {
   LOG(INFO) << "Got HandleRegisterInstanceRequest from connection " << _conn << " and instance "
             << _request->instance().instance_id();
   // Do some basic checks
@@ -298,16 +332,25 @@ void InstanceServer::HandleRegisterInstanceRequest(REQID _reqid, Connection* _co
     }
     // Create a metric for this instance
     if (instance_metric_map_.find(instance_id) == instance_metric_map_.end()) {
-      auto instance_metric = new heron::common::TimeSpentMetric();
+      auto instance_metric = make_shared<heron::common::TimeSpentMetric>();
       metrics_manager_client_->register_metric(MakeBackPressureCompIdMetricName(instance_id),
                                                instance_metric);
       instance_metric_map_[instance_id] = instance_metric;
     }
     if (connection_buffer_metric_map_.find(instance_id) == connection_buffer_metric_map_.end()) {
-      auto queue_metric = new heron::common::MultiMeanMetric();
+      auto queue_metric = make_shared<heron::common::MultiMeanMetric>();
       metrics_manager_client_->register_metric(MakeQueueSizeCompIdMetricName(instance_id),
                                                queue_metric);
       connection_buffer_metric_map_[instance_id] = queue_metric;
+    }
+
+    if (connection_buffer_length_metric_map_.find(instance_id) ==
+      connection_buffer_length_metric_map_.end()) {
+      task_id_to_name[task_id] = instance_id;
+      auto queue_metric = make_shared<heron::common::MultiCountMetric>();
+      metrics_manager_client_->register_metric(MakeQueueLengthCompIdMetricName(instance_id),
+                                               queue_metric);
+      connection_buffer_length_metric_map_[instance_id] = queue_metric;
     }
     instance_info_[task_id]->set_connection(_conn);
 
@@ -318,6 +361,11 @@ void InstanceServer::HandleRegisterInstanceRequest(REQID _reqid, Connection* _co
       response.mutable_pplan()->CopyFrom(*pplan);
     }
     SendResponse(_reqid, _conn, response);
+    // Apply rate limit to the connection
+    if (pplan) {
+      const std::string component = instance_info_[task_id]->instance_->info().component_name();
+      SetRateLimit(*pplan, component, _conn);
+    }
 
     // Have all the instances connected to us?
     if (HaveAllInstancesConnectedToUs()) {
@@ -350,6 +398,13 @@ void InstanceServer::HandleTupleSetMessage(Connection* _conn,
 }
 
 void InstanceServer::SendToInstance2(proto::stmgr::TupleStreamMessage* _message) {
+  sp_string instance_id = task_id_to_name[_message->task_id()];
+  ConnectionBufferLengthMetricMap::const_iterator it =
+    connection_buffer_length_metric_map_.find(instance_id);
+  if ( it != connection_buffer_length_metric_map_.end() )
+    connection_buffer_length_metric_map_
+      [instance_id]->scope("packets")->incr_by(_message->num_tuples());
+
   stateful_gateway_->SendToInstance(_message);
 }
 
@@ -367,6 +422,16 @@ void InstanceServer::DrainTupleStream(proto::stmgr::TupleStreamMessage* _message
 
 void InstanceServer::SendToInstance2(sp_int32 _task_id,
                                   proto::system::HeronTupleSet2* _message) {
+  if (_message->has_data()) {
+    sp_string instance_id = task_id_to_name[_task_id];
+
+    ConnectionBufferLengthMetricMap::const_iterator it =
+      connection_buffer_length_metric_map_.find(instance_id);
+
+    if ( it != connection_buffer_length_metric_map_.end() )
+      connection_buffer_length_metric_map_
+        [instance_id]->scope("packets")->incr_by(_message->data().tuples_size());
+  }
   stateful_gateway_->SendToInstance(_task_id, _message);
 }
 
@@ -416,12 +481,41 @@ void InstanceServer::DrainCheckpoint(sp_int32 _task_id,
 
 void InstanceServer::BroadcastNewPhysicalPlan(const proto::system::PhysicalPlan& _pplan) {
   // TODO(vikasr) We do not handle any changes to our local assignment
+  LOG(INFO) << "Broadcasting new PhysicalPlan:";
+  config::TopologyConfigHelper::LogTopology(_pplan.topology());
+
   ComputeLocalSpouts(_pplan);
   proto::stmgr::NewInstanceAssignmentMessage new_assignment;
   new_assignment.mutable_pplan()->CopyFrom(_pplan);
   for (auto iter = active_instances_.begin(); iter != active_instances_.end(); ++iter) {
     LOG(INFO) << "Sending new physical plan to instance with task_id: " << iter->second;
-    SendMessage(iter->first, new_assignment);
+    Connection* conn = iter->first;
+    SendMessage(conn, new_assignment);
+    // Update connection's rate limiting base on component config
+    sp_int32 id = iter->second;
+    const std::string component = instance_info_[id]->instance_->info().component_name();
+    SetRateLimit(_pplan, component, conn);
+  }
+}
+
+void InstanceServer::SetRateLimit(const proto::system::PhysicalPlan& _pplan,
+                                  const std::string& _component,
+                                  Connection* _conn) const {
+  sp_int64 read_bps =
+      config::TopologyConfigHelper::GetComponentOutputBPS(_pplan.topology(), _component);
+  sp_int32 parallelism =
+      config::TopologyConfigHelper::GetComponentParallelism(_pplan.topology(), _component);
+  // burst rate is 1.5 x of regular rate
+  sp_int64 burst_read_bps = read_bps + read_bps / 2;
+
+  LOG(INFO) << "Parallelism of component " << _component << " is " << parallelism;
+  LOG(INFO) << "Read BPS of component " << _component << " is " << read_bps;
+  if (parallelism > 0 && read_bps >= 0 && burst_read_bps >= 0) {
+    LOG(INFO) << "Set rate limit in " << _component << " to " << read_bps << "/" << burst_read_bps;
+    _conn->setRateLimit(read_bps / parallelism, burst_read_bps / parallelism);
+  } else {
+    LOG(INFO) << "Disable rate limit in " << _component;
+    _conn->disableRateLimit();
   }
 }
 
@@ -468,7 +562,7 @@ void InstanceServer::StartBackPressureConnectionCb(Connection* _connection) {
   }
 
   // Indicate which instance component had back pressure
-  heron::common::TimeSpentMetric* instance_metric = instance_metric_map_[instance_name];
+  auto instance_metric = instance_metric_map_[instance_name];
   instance_metric->Start();
 
   remote_ends_who_caused_back_pressure_.insert(instance_name);
@@ -497,7 +591,7 @@ void InstanceServer::StopBackPressureConnectionCb(Connection* _connection) {
   remote_ends_who_caused_back_pressure_.erase(instance_name);
 
   // Indicate which instance component stopped back pressure
-  heron::common::TimeSpentMetric* instance_metric = instance_metric_map_[instance_name];
+  auto instance_metric = instance_metric_map_[instance_name];
   instance_metric->Stop();
 
   if (!stmgr_->DidAnnounceBackPressure()) {

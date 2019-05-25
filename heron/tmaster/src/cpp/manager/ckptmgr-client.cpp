@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/ckptmgr-client.h"
@@ -35,9 +38,11 @@ CkptMgrClient::CkptMgrClient(EventLoop* eventLoop, const NetworkOptions& _option
     // TODO(sanjeev): Take this from config
     reconnect_ckptmgr_interval_sec_ = 10;
 
-    InstallResponseHandler(new proto::ckptmgr::RegisterTMasterRequest(),
+
+
+    InstallResponseHandler(make_unique<proto::ckptmgr::RegisterTMasterRequest>(),
                            &CkptMgrClient::HandleTMasterRegisterResponse);
-    InstallResponseHandler(new proto::ckptmgr::CleanStatefulCheckpointRequest(),
+    InstallResponseHandler(make_unique<proto::ckptmgr::CleanStatefulCheckpointRequest>(),
                            &CkptMgrClient::HandleCleanStatefulCheckpointResponse);
 }
 
@@ -66,7 +71,6 @@ void CkptMgrClient::HandleConnect(NetworkErrorCode _status) {
                  << " due to: " << _status << std::endl;
     if (quit_) {
       LOG(ERROR) << "Quitting" << std::endl;
-      delete this;
     } else {
       LOG(INFO) << "Retrying again..." << std::endl;
       AddTimer([this]() { this->OnReconnectTimer(); },
@@ -86,7 +90,7 @@ void CkptMgrClient::HandleClose(NetworkErrorCode _status) {
               << " closed connection with code: " << _status << std::endl;
   }
   if (quit_) {
-    delete this;
+    LOG(ERROR) << "Quitting" << std::endl;
   } else {
     LOG(INFO) << "Will try to reconnect again..." << std::endl;
     AddTimer([this]() { this->OnReconnectTimer(); },
@@ -123,20 +127,20 @@ void CkptMgrClient::OnReconnectTimer() { Start(); }
 
 void CkptMgrClient::SendRegisterRequest() {
   LOG(INFO) << "Sending RegisterTmasterRequest to ckptmgr" << std::endl;
-  auto request = new proto::ckptmgr::RegisterTMasterRequest();
+  auto request = make_unique<proto::ckptmgr::RegisterTMasterRequest>();
   request->set_topology_name(topology_name_);
   request->set_topology_id(topology_id_);
-  SendRequest(request, NULL);
+  SendRequest(std::move(request), NULL);
 }
 
 void CkptMgrClient::SendCleanStatefulCheckpointRequest(const std::string& _oldest_ckpt,
                                                        bool _clean_all) {
   LOG(INFO) << "Sending CleanStatefulCheckpoint request to ckptmgr with oldest checkpoint "
             << _oldest_ckpt << " and clean_all " << _clean_all << std::endl;
-  auto request = new proto::ckptmgr::CleanStatefulCheckpointRequest();
+  auto request = make_unique<proto::ckptmgr::CleanStatefulCheckpointRequest>();
   request->set_oldest_checkpoint_preserved(_oldest_ckpt);
   request->set_clean_all_checkpoints(_clean_all);
-  SendRequest(request, NULL);
+  SendRequest(std::move(request), NULL);
 }
 
 void CkptMgrClient::HandleCleanStatefulCheckpointResponse(void*,

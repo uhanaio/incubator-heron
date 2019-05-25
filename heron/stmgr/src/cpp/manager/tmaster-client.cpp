@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/tmaster-client.h"
@@ -63,9 +66,9 @@ TMasterClient::TMasterClient(EventLoop* eventLoop, const NetworkOptions& _option
   reconnect_timer_cb = [this]() { this->OnReConnectTimer(); };
   heartbeat_timer_cb = [this]() { this->OnHeartbeatTimer(); };
 
-  InstallResponseHandler(new proto::tmaster::StMgrRegisterRequest(),
+  InstallResponseHandler(make_unique<proto::tmaster::StMgrRegisterRequest>(),
                          &TMasterClient::HandleRegisterResponse);
-  InstallResponseHandler(new proto::tmaster::StMgrHeartbeatRequest(),
+  InstallResponseHandler(make_unique<proto::tmaster::StMgrHeartbeatRequest>(),
                          &TMasterClient::HandleHeartbeatResponse);
   InstallMessageHandler(&TMasterClient::HandleNewAssignmentMessage);
   InstallMessageHandler(&TMasterClient::HandleStatefulCheckpointMessage);
@@ -113,7 +116,7 @@ void TMasterClient::HandleConnect(NetworkErrorCode _status) {
       return;
     }
     LOG(ERROR) << "Could not connect to tmaster at " << get_clientoptions().get_host() << ":"
-               << get_clientoptions().get_port() << std::endl;
+               << get_clientoptions().get_port() << ", Status code: " << _status << std::endl;
     LOG(INFO) << "Will retry again..." << std::endl;
     // Shouldn't be in a state where a previous timer is not cleared yet.
     if (reconnect_timer_id == 0) {
@@ -231,7 +234,7 @@ void TMasterClient::CleanInstances() {
 }
 
 void TMasterClient::SendRegisterRequest() {
-  auto request = new proto::tmaster::StMgrRegisterRequest();
+  auto request = make_unique<proto::tmaster::StMgrRegisterRequest>();
 
   sp_string cwd;
   FileUtils::getCwd(cwd);
@@ -248,7 +251,7 @@ void TMasterClient::SendRegisterRequest() {
     request->add_instances()->CopyFrom(*(*iter));
   }
 
-  SendRequest(request, nullptr);
+  SendRequest(std::move(request), nullptr);
   return;
 }
 
@@ -265,11 +268,11 @@ void TMasterClient::SetInstanceInfo(const std::vector<proto::system::Instance*>&
 }
 
 void TMasterClient::SendHeartbeatRequest() {
-  auto request = new proto::tmaster::StMgrHeartbeatRequest();
+  auto request = make_unique<proto::tmaster::StMgrHeartbeatRequest>();
   request->set_heartbeat_time(time(nullptr));
   // TODO(vikasr) Send actual stats
   request->mutable_stats();
-  SendRequest(request, nullptr);
+  SendRequest(std::move(request), nullptr);
   return;
 }
 

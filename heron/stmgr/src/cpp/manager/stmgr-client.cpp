@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/stmgr-client.h"
@@ -30,6 +33,8 @@
 
 namespace heron {
 namespace stmgr {
+
+using std::make_shared;
 
 // Num data tuples sent to other stream managers
 const sp_string METRIC_DATA_TUPLES_TO_STMGRS = "__tuples_to_stmgrs";
@@ -71,17 +76,17 @@ StMgrClient::StMgrClient(EventLoop* eventLoop, const NetworkOptions& _options,
   reconnect_other_streammgrs_interval_sec_ =
       config::HeronInternalsConfigReader::Instance()->GetHeronStreammgrClientReconnectIntervalSec();
 
-  InstallResponseHandler(new proto::stmgr::StrMgrHelloRequest(), &StMgrClient::HandleHelloResponse);
+  InstallResponseHandler(make_unique<proto::stmgr::StrMgrHelloRequest>(),
+          &StMgrClient::HandleHelloResponse);
   InstallMessageHandler(&StMgrClient::HandleTupleStreamMessage);
 
-  stmgr_client_metrics_ = new heron::common::MultiCountMetric();
+  stmgr_client_metrics_ = make_shared<heron::common::MultiCountMetric>();
   metrics_manager_client_->register_metric("__client_" + other_stmgr_id_, stmgr_client_metrics_);
 }
 
 StMgrClient::~StMgrClient() {
   Stop();
   metrics_manager_client_->unregister_metric("__client_" + other_stmgr_id_);
-  delete stmgr_client_metrics_;
 }
 
 void StMgrClient::Quit() {
@@ -175,33 +180,62 @@ void StMgrClient::OnReConnectTimer() {
 }
 
 void StMgrClient::SendHelloRequest() {
-  auto request = new proto::stmgr::StrMgrHelloRequest();
+  auto request = make_unique<proto::stmgr::StrMgrHelloRequest>();
   request->set_topology_name(topology_name_);
   request->set_topology_id(topology_id_);
   request->set_stmgr(our_stmgr_id_);
-  SendRequest(request, NULL);
+  SendRequest(std::move(request), NULL);
   stmgr_client_metrics_->scope(METRIC_HELLO_MESSAGES_TO_STMGRS)->incr_by(1);
   return;
 }
 
 bool StMgrClient::SendTupleStreamMessage(proto::stmgr::TupleStreamMessage& _msg) {
-  if (!IsConnected()) {
-    if (++ndropped_messages_ % 100 == 0) {
-      LOG(INFO) << "Dropping " << ndropped_messages_ << "th tuple message to stmgr "
-                << other_stmgr_id_ << " because it is not connected";
-      }
-    return false;
-  } else if (droptuples_upon_backpressure_ && HasCausedBackPressure()) {
-    if (++ndropped_messages_ % 100 == 0) {
-      LOG(INFO) << "Dropping " << ndropped_messages_ << "th tuple message to stmgr "
-                << other_stmgr_id_ << " because it is causing backpressure and "
-                << "droptuples_upon_backpressure is set";
+  bool retval;
+  proto::system::HeronTupleSet2* tuple_set = nullptr;
+  tuple_set = __global_protobuf_pool_acquire__(tuple_set);
+  tuple_set->ParsePartialFromString(_msg.set());
+
+  if (!IsConnected() || (droptuples_upon_backpressure_ && HasCausedBackPressure())) {
+    stmgr_client_metrics_->scope(METRIC_BYTES_TO_STMGRS_LOST)->incr_by(_msg.ByteSize());
+    if (tuple_set->has_data()) {
+      stmgr_client_metrics_->scope(METRIC_DATA_TUPLES_TO_STMGRS_LOST)
+          ->incr_by(tuple_set->data().tuples_size());
+    } else if (tuple_set->has_control()) {
+      stmgr_client_metrics_->scope(METRIC_ACK_TUPLES_TO_STMGRS_LOST)
+          ->incr_by(tuple_set->control().acks_size());
+      stmgr_client_metrics_->scope(METRIC_FAIL_TUPLES_TO_STMGRS_LOST)
+          ->incr_by(tuple_set->control().fails_size());
     }
-    return false;
+
+    if (++ndropped_messages_ % 100 == 0) {
+      if (!IsConnected()) {
+        LOG(INFO) << "Dropping " << ndropped_messages_ << "th tuple message to stmgr "
+                  << other_stmgr_id_ << " because it is not connected";
+      } else {
+        LOG(INFO) << "Dropping " << ndropped_messages_ << "th tuple message to stmgr "
+                        << other_stmgr_id_ << " because it is causing backpressure and "
+                        << "droptuples_upon_backpressure is set";
+      }
+    }
+    retval = false;
   } else {
+    stmgr_client_metrics_->scope(METRIC_BYTES_TO_STMGRS)->incr_by(_msg.ByteSize());
+    if (tuple_set->has_data()) {
+      stmgr_client_metrics_->scope(METRIC_DATA_TUPLES_TO_STMGRS)
+          ->incr_by(tuple_set->data().tuples_size());
+    } else if (tuple_set->has_control()) {
+      stmgr_client_metrics_->scope(METRIC_ACK_TUPLES_TO_STMGRS)
+          ->incr_by(tuple_set->control().acks_size());
+      stmgr_client_metrics_->scope(METRIC_FAIL_TUPLES_TO_STMGRS)
+          ->incr_by(tuple_set->control().fails_size());
+    }
+
     SendMessage(_msg);
-    return true;
+    retval = true;
   }
+
+  __global_protobuf_pool_release__(tuple_set);
+  return retval;
 }
 
 void StMgrClient::HandleTupleStreamMessage(proto::stmgr::TupleStreamMessage* _message) {

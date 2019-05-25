@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 #include "manager/ckptmgr-client.h"
@@ -24,13 +27,17 @@
 namespace heron {
 namespace stmgr {
 
+using std::unique_ptr;
+using proto::ckptmgr::SaveInstanceStateRequest;
+
 CkptMgrClient::CkptMgrClient(EventLoop* eventloop, const NetworkOptions& _options,
                              const sp_string& _topology_name, const sp_string& _topology_id,
                              const sp_string& _ckptmgr_id, const sp_string& _stmgr_id,
                              std::function<void(const proto::system::Instance&,
                                                 const std::string&)> _ckpt_saved_watcher,
                              std::function<void(proto::system::StatusCode, sp_int32, sp_string,
-                               const proto::ckptmgr::InstanceStateCheckpoint&)> _ckpt_get_watcher,
+                               const proto::ckptmgr::InstanceStateCheckpoint&)>
+                               _ckpt_get_watcher,
                              std::function<void()> _register_watcher)
     : Client(eventloop, _options),
       topology_name_(_topology_name),
@@ -38,6 +45,7 @@ CkptMgrClient::CkptMgrClient(EventLoop* eventloop, const NetworkOptions& _option
       ckptmgr_id_(_ckptmgr_id),
       stmgr_id_(_stmgr_id),
       quit_(false),
+      pplan_(nullptr),
       ckpt_saved_watcher_(_ckpt_saved_watcher),
       ckpt_get_watcher_(_ckpt_get_watcher),
       register_watcher_(_register_watcher) {
@@ -45,11 +53,11 @@ CkptMgrClient::CkptMgrClient(EventLoop* eventloop, const NetworkOptions& _option
   // TODO(nlu): take the value from config
   reconnect_cpktmgr_interval_sec_ = 10;
 
-  InstallResponseHandler(new proto::ckptmgr::RegisterStMgrRequest(),
+  InstallResponseHandler(make_unique<proto::ckptmgr::RegisterStMgrRequest>(),
                          &CkptMgrClient::HandleRegisterStMgrResponse);
-  InstallResponseHandler(new proto::ckptmgr::SaveInstanceStateRequest(),
+  InstallResponseHandler(make_unique<proto::ckptmgr::SaveInstanceStateRequest>(),
                          &CkptMgrClient::HandleSaveInstanceStateResponse);
-  InstallResponseHandler(new proto::ckptmgr::GetInstanceStateRequest(),
+  InstallResponseHandler(make_unique<proto::ckptmgr::GetInstanceStateRequest>(),
                          &CkptMgrClient::HandleGetInstanceStateResponse);
 }
 
@@ -136,16 +144,21 @@ void CkptMgrClient::HandleRegisterStMgrResponse(void*,
 void CkptMgrClient::OnReconnectTimer() { Start(); }
 
 void CkptMgrClient::SendRegisterRequest() {
-  auto request = new proto::ckptmgr::RegisterStMgrRequest();
+  auto request = make_unique<proto::ckptmgr::RegisterStMgrRequest>();
   request->set_topology_name(topology_name_);
   request->set_topology_id(topology_id_);
   request->set_stmgr_id(stmgr_id_);
-  SendRequest(request, NULL);
+  request->mutable_physical_plan()->CopyFrom(*pplan_);
+  SendRequest(std::move(request), NULL);
 }
 
-void CkptMgrClient::SaveInstanceState(proto::ckptmgr::SaveInstanceStateRequest* _request) {
+void CkptMgrClient::SaveInstanceState(unique_ptr<SaveInstanceStateRequest> _request) {
   LOG(INFO) << "Sending SaveInstanceState to ckptmgr" << std::endl;
-  SendRequest(_request, NULL);
+  SendRequest(std::move(_request), NULL);
+}
+
+void CkptMgrClient::SetPhysicalPlan(proto::system::PhysicalPlan& _pplan) {
+  pplan_ = &_pplan;
 }
 
 void CkptMgrClient::GetInstanceState(const proto::system::Instance& _instance,
@@ -160,10 +173,10 @@ void CkptMgrClient::GetInstanceState(const proto::system::Instance& _instance,
 void CkptMgrClient::GetInstanceState(const proto::system::Instance& _instance,
                                      const std::string& _checkpoint_id,
                                      int32_t* _nattempts) {
-  auto request = new proto::ckptmgr::GetInstanceStateRequest();
+  auto request = make_unique<proto::ckptmgr::GetInstanceStateRequest>();
   request->mutable_instance()->CopyFrom(_instance);
   request->set_checkpoint_id(_checkpoint_id);
-  SendRequest(request, _nattempts);
+  SendRequest(std::move(request), _nattempts);
 }
 
 void CkptMgrClient::HandleSaveInstanceStateResponse(void*,
