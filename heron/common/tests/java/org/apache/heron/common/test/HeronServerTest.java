@@ -33,9 +33,7 @@ import com.google.protobuf.Message;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import org.apache.heron.common.basics.NIOLooper;
 import org.apache.heron.common.basics.SysUtils;
@@ -76,12 +74,6 @@ public class HeronServerTest {
   private CountDownLatch clientOnConnectSignal;
   private CountDownLatch clientOnResponseSignal;
   private HeronServerTester heronServerTester;
-
-  /**
-   * JUnit rule for expected exception
-   */
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void before() throws IOException {
@@ -204,9 +196,8 @@ public class HeronServerTest {
   /**
    * Method: handleConnect(SelectableChannel channel)
    */
-  @Test
+  @Test(expected = RuntimeException.class)
   public void testHandleConnect() {
-    exception.expect(RuntimeException.class);
     heronServer.handleConnect(null);
   }
 
