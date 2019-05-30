@@ -197,6 +197,7 @@ java_library(
     exports = [ "@org_mockito_mockito_core//jar" ],
     deps = [
         "@org_mockito_mockito_core//jar",
+        "@org_objenesis_objenesis//jar",
         "@net_bytebuddy_byte_buddy//jar",
         "@net_bytebuddy_byte_buddy_agent//jar",
     ],
