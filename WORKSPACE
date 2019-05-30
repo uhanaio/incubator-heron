@@ -24,7 +24,7 @@ aws_version = "1.11.58"
 curator_version = "2.9.0"
 google_client_version = "1.22.0"
 jackson_version = "2.8.8"
-powermock_version = "1.6.2"
+powermock_version = "2.0.2"
 reef_version = "0.14.0"
 slf4j_version = "1.7.7"
 distributedlog_version = "4.7.3"
@@ -357,8 +357,8 @@ maven_jar(
 )
 
 maven_jar(
-  name = "org_powermock_powermock_api_mockito",
-  artifact = "org.powermock:powermock-api-mockito:" + powermock_version,
+  name = "org_powermock_powermock_api_mockito2",
+  artifact = "org.powermock:powermock-api-mockito2:" + powermock_version,
 )
 
 maven_jar(
@@ -453,8 +453,18 @@ maven_jar(
 )
 
 maven_jar(
-  name = "org_mockito_mockito_all",
-  artifact = "org.mockito:mockito-all:1.10.19",
+  name = "org_mockito_mockito_core",
+  artifact = "org.mockito:mockito-core:2.28.2",
+)
+
+maven_jar(
+  name = "net_bytebuddy_byte_buddy",
+  artifact = "net.bytebuddy:byte-buddy:1.9.13",
+)
+
+maven_jar(
+  name = "net_bytebuddy_byte_buddy_agent",
+  artifact = "net.bytebuddy:byte-buddy-agent:1.9.13",
 )
 
 maven_jar(

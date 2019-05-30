@@ -150,14 +150,14 @@ java_library(
     name = "powermock",
     srcs = [ "Empty.java" ],
     exports = [
-        "@org_powermock_powermock_api_mockito//jar",
+        "@org_powermock_powermock_api_mockito2//jar",
         "@org_powermock_powermock_api_support//jar",
         "@org_powermock_powermock_core//jar",
         "@org_powermock_powermock_module_junit4//jar",
         "@org_powermock_powermock_module_junit4_common//jar",
     ],
     deps = [
-        "@org_powermock_powermock_api_mockito//jar",
+        "@org_powermock_powermock_api_mockito2//jar",
         "@org_powermock_powermock_api_support//jar",
         "@org_powermock_powermock_core//jar",
         "@org_powermock_powermock_module_junit4//jar",
@@ -194,8 +194,12 @@ java_library(
 java_library(
     name = "mockito",
     srcs = [ "Empty.java" ],
-    exports = [ "@org_mockito_mockito_all//jar" ],
-    deps = [ "@org_mockito_mockito_all//jar" ],
+    exports = [ "@org_mockito_mockito_core//jar" ],
+    deps = [
+        "@org_mockito_mockito_core//jar",
+        "@net_bytebuddy_byte_buddy//jar",
+        "@net_bytebuddy_byte_buddy_agent//jar",
+    ],
 )
 
 java_library(
