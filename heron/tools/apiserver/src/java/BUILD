@@ -45,6 +45,7 @@ apiserver_deps_files = \
   uploader_deps_files + [
     "//third_party/java:cli",
     "@org_yaml_snakeyaml//jar",
+    "@javax_activation//jar",
     "//third_party/java:jetty-jersey-java",
     "//third_party/java:commons-compress",
     "//third_party/java:jackson",

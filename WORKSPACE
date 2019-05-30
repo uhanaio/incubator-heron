@@ -56,6 +56,16 @@ maven_jar(
 )
 
 maven_jar(
+  name = "javax_activation",
+  artifact = "javax.activation:activation:1.1.1",
+)
+
+maven_jar(
+  name = "javax_xml_bind_jaxb_api",
+  artifact = "javax.xml.bind:jaxb-api:2.3.1",
+)
+
+maven_jar(
     name = "aopalliance_aopalliance",
     artifact = "aopalliance:aopalliance:1.0",
 )

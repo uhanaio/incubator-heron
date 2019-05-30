@@ -24,7 +24,8 @@ java_library(
     srcs = glob(["org/apache/heron/api/**/*.java"]),
     javacopts = DOCLINT_HTML_AND_SYNTAX,
     deps = api_deps_files + [
-        "//third_party/java:kryo-neverlink"
+        "//third_party/java:kryo-neverlink",
+        "@javax_xml_bind_jaxb_api//jar",
     ]
 )
 
@@ -46,7 +47,8 @@ java_library(
     srcs = glob(["org/apache/heron/api/**/*.java", "org/apache/heron/streamlet/**/*.java"]),
     deps = api_deps_files + [
         "//third_party/java:kryo-neverlink",
-        "@org_apache_commons_commons_lang3//jar"
+        "@org_apache_commons_commons_lang3//jar",
+        "@javax_xml_bind_jaxb_api//jar",
     ]
 )
 
@@ -55,7 +57,8 @@ java_binary(
     srcs = glob(["org/apache/heron/api/**/*.java", "org/apache/heron/streamlet/**/*.java"]),
     deps = api_deps_files + [
         "//third_party/java:kryo-neverlink",
-        "@org_apache_commons_commons_lang3//jar"
+        "@org_apache_commons_commons_lang3//jar",
+        "@javax_xml_bind_jaxb_api//jar",
     ]
 )
 
