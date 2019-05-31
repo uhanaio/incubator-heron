@@ -991,14 +991,14 @@ http_archive(
 )
 
 # scala integration
-rules_scala_version = "09790bb54249ab8ad517cd696171bc50a8e8a218"  # update this as needed
+rules_scala_version = "300b4369a0a56d9e590d9fea8a73c3913d758e12"  # May 27 - update this as needed
 
 http_archive(
     name = "io_bazel_rules_scala",
     urls = ["https://github.com/bazelbuild/rules_scala/archive/%s.zip" % rules_scala_version],
     type = "zip",
     strip_prefix = "rules_scala-%s" % rules_scala_version,
-    sha256 = "5802892809a9a90a993e4db02d97e729bf53d311c241a644260c88075438acdb",
+    sha256 = "7f35ee7d96b22f6139b81da3a8ba5fb816e1803ed097f7295b85b7a56e4401c7",
 )
 
 load("@io_bazel_rules_scala//scala:scala.bzl", "scala_repositories")

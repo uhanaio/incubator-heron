@@ -663,6 +663,74 @@ class HeronExecutor(object):
         '-XX:+PrintGCDateStamps',
         '-XX:+PrintGCCause',
         '-XX:+UseGCLogFileRotation',
+        '-XX:NumberOfGCLogFiles=5',
+        '-XX:GCLogFileSize=100M',
+        '-XX:+PrintPromotionFailure',
+        '-XX:+PrintTenuringDistribution',
+        '-XX:+PrintHeapAtGC',
+        '-XX:+HeapDumpOnOutOfMemoryError',
+        '-XX:+UseConcMarkSweepGC',
+        '-XX:ParallelGCThreads=4',
+        '-Xloggc:log-files/gc.%s.log' % instance_id,
+        '-Djava.net.preferIPv4Stack=true',
+        '-cp',
+        '%s:%s'% (self.instance_classpath, self.classpath)]
+      # Append debugger ports
+      remote_debugger_port = None
+      if self.jvm_remote_debugger_ports:
+        remote_debugger_port = self.jvm_remote_debugger_ports.pop()
+
+      instance_cmd = self._get_jvm_instance_cmd().copy()            # JVM command
+      instance_cmd.extend(                                          # JVM options
+          self._get_jvm_instance_options(
+              instance_id, component_name, remote_debugger_port))
+      instance_cmd.append(instance_class_name)                      # Class name
+      instance_cmd.extend(                                          # JVM arguments
+          self._get_jvm_instance_arguments(
+              instance_id, component_name, global_task_id, component_index, remote_debugger_port))
+
+      retval[instance_id] = instance_cmd
+
+    return retval
+
+  def _get_jvm_instance_cmd(self):
+    return Command(os.path.join(self.heron_java_home, 'bin/java'), self.shell_env)
+
+  def _get_jvm_instance_options(self, instance_id, component_name, remote_debugger_port):
+    code_cache_size_mb = 64
+    java_metasize_mb = 128
+
+    total_jvm_size = int(self.component_ram_map[component_name] / (1024 * 1024))
+    heap_size_mb = total_jvm_size - code_cache_size_mb - java_metasize_mb
+    Log.info("component name: %s, RAM request: %d, total JVM size: %dM, "
+             "cache size: %dM, metaspace size: %dM"
+             % (component_name, self.component_ram_map[component_name],
+                total_jvm_size, code_cache_size_mb, java_metasize_mb))
+    xmn_size = int(heap_size_mb / 2)
+
+    java_version = self._get_jvm_version()
+    java_metasize_param = 'MetaspaceSize'
+    if java_version.startswith("1.7") or \
+            java_version.startswith("1.6") or \
+            java_version.startswith("1.5"):
+      java_metasize_param = 'PermSize'
+
+    instance_options = [
+        '-Xmx%dM' % heap_size_mb,
+        '-Xms%dM' % heap_size_mb,
+        '-Xmn%dM' % xmn_size,
+        '-XX:Max%s=%dM' % (java_metasize_param, java_metasize_mb),
+        '-XX:%s=%dM' % (java_metasize_param, java_metasize_mb),
+        '-XX:ReservedCodeCacheSize=%dM' % code_cache_size_mb,
+        '-XX:+CMSScavengeBeforeRemark',
+        '-XX:TargetSurvivorRatio=90',
+        '-XX:+PrintCommandLineFlags',
+        '-verbosegc',
+        '-XX:+PrintGCDetails',
+        '-XX:+PrintGCTimeStamps',
+        '-XX:+PrintGCDateStamps',
+        '-XX:+PrintGCCause',
+        '-XX:+UseGCLogFileRotation',
         '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
         '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
         '-XX:+PrintPromotionFailure',
