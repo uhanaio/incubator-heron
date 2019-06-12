@@ -28,6 +28,7 @@ import yaml
 # pylint: disable=dangerous-default-value
 
 def load_state_manager_locations(cluster, state_manager_config_file='heron-conf/statemgr.yaml',
+                                 override_config_file='',
                                  overrides={}):
   """ Reads configs to determine which state manager to use and converts them to state manager
   locations. Handles a subset of config wildcard substitution supported in the substitute method in
@@ -47,6 +48,11 @@ def load_state_manager_locations(cluster, state_manager_config_file='heron-conf/
   config = __replace(config, wildcards, state_manager_config_file)
 
   # merge with overrides
+  if override_config_file:
+    with open(override_config_file, 'r') as stream:
+      file_overrides = yaml.load(stream)
+      if file_overrides:
+        config.update(file_overrides)
   if overrides:
     config.update(overrides)
 

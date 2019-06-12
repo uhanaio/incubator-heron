@@ -1119,7 +1119,8 @@ class HeronExecutor(object):
     statemgr_config = StateMgrConfig()
     statemgr_config.set_state_locations(configloader.load_state_manager_locations(
         self.cluster, state_manager_config_file=self.state_manager_config_file,
-        overrides={"heron.statemgr.connection.string": self.state_manager_connection}))
+        overrides={"heron.statemgr.connection.string": self.state_manager_connection},
+        override_config_file=self.override_config_file))
     try:
       self.state_managers = statemanagerfactory.get_all_state_managers(statemgr_config)
       for state_manager in self.state_managers:
