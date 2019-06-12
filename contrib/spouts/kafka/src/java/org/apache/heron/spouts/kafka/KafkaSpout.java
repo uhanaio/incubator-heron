@@ -51,6 +51,7 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 
@@ -61,7 +62,7 @@ import org.apache.kafka.common.TopicPartition;
  * @param <V> the type of the value field of the Kafka record
  */
 public class KafkaSpout<K, V> extends BaseRichSpout
-    implements IStatefulComponent<TopicPartition, Long> {
+    implements IStatefulComponent<TopicPartition, Long>, OffsetCommitCallback {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSpout.class);
   private static final long serialVersionUID = -2271355516537883361L;
   private int metricsIntervalInSecs = 60;
@@ -149,7 +150,7 @@ public class KafkaSpout<K, V> extends BaseRichSpout
             .stream()
             .collect(Collectors.toMap(Map.Entry::getKey,
                 entry -> new OffsetAndMetadata(entry.getValue() + 1))),
-        null);
+        this);
   }
 
   @Override
@@ -354,7 +355,7 @@ public class KafkaSpout<K, V> extends BaseRichSpout
     Map.Entry<Long, Long> firstEntry = ackRanges.firstEntry();
     if (firstEntry != null) {
       consumer.commitAsync(Collections.singletonMap(topicPartition,
-          new OffsetAndMetadata(firstEntry.getValue() + 1)), null);
+          new OffsetAndMetadata(firstEntry.getValue() + 1)), this);
     }
   }
 
@@ -397,6 +398,15 @@ public class KafkaSpout<K, V> extends BaseRichSpout
         .append(s2));
     LOG.info("register Kakfa Consumer metric {}", builder);
     return builder.toString();
+  }
+
+  @Override
+  public void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
+    if (exception == null) {
+      return;
+    }
+
+    LOG.error("Error while committing offsets!", exception);
   }
 
   static class ConsumerRecordMessageId {
