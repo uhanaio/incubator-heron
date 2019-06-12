@@ -389,7 +389,8 @@ public class MetricsManager {
     LOG.info("System Config: " + systemConfig);
 
     // Populate the config
-    MetricsSinksConfig sinksConfig = new MetricsSinksConfig(metricsSinksConfigFilename);
+    MetricsSinksConfig sinksConfig = new MetricsSinksConfig(metricsSinksConfigFilename,
+                                                            overrideConfigFilename);
 
     LOG.info("Sinks Config:" + sinksConfig.toString());
 
