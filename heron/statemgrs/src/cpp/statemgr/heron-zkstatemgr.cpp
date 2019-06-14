@@ -844,8 +844,9 @@ void HeronZKStateMgr::SetPackingPlanWatchInternal() {
 }
 
 void HeronZKStateMgr::TMasterLocationWatch() {
-  // First setup watch again
-  SetTMasterLocationWatchInternal();
+  // close zk client
+  delete zkclient_;
+  delete zkclient_factory_;
   // Then run the watcher
   tmaster_location_watcher_info_->watcher_cb();
 }
