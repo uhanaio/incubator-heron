@@ -123,10 +123,6 @@ public class CuratorStateManager extends FileSystemStateManager {
     } catch (InterruptedException e) {
       throw new RuntimeException("Failed to initialize CuratorClient", e);
     }
-
-    if (ZkContext.isInitializeTree(newConfig)) {
-      initTree();
-    }
   }
 
   /**
@@ -189,7 +185,7 @@ public class CuratorStateManager extends FileSystemStateManager {
     return ZkUtils.setupZkTunnel(config, tunnelConfig);
   }
 
-  protected void initTree() {
+  public void initTree() {
     // Make necessary directories
     for (StateLocation location : StateLocation.values()) {
       LOG.fine(String.format("%s directory: %s", location.getName(), getStateDirectory(location)));
@@ -277,10 +273,19 @@ public class CuratorStateManager extends FileSystemStateManager {
   }
 
   @Override
-  protected ListenableFuture<Boolean> deleteNode(String path, boolean deleteChildrenIfNecessary) {
+  public ListenableFuture<Boolean> deleteNode(String path, boolean deleteChildrenIfNecessary) {
     final SettableFuture<Boolean> result = SettableFuture.create();
 
     try {
+      ListenableFuture<Boolean> exists = nodeExists(path);
+      if (exists.get()) {
+        LOG.info("Node exists, deleting...");
+      } else {
+        LOG.info("Node does not exist, skipping delete...");
+        safeSetFuture(result, true);
+        return result;
+      }
+
       DeleteBuilder deleteBuilder = client.delete();
       if (deleteChildrenIfNecessary) {
         deleteBuilder = (DeleteBuilder) deleteBuilder.deletingChildrenIfNeeded();
