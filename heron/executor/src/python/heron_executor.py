@@ -81,7 +81,9 @@ def print_usage():
       " --stateful-config-file=<stateful_config_file>"
       " --health-manager-mode=<healthmgr_mode> --health-manager-classpath=<healthmgr_classpath>"
       " --cpp-instance-binary=<cpp_instance_binary>"
-      " --jvm-remote-debugger-ports=<comma_seperated_port_list>")
+      " --jvm-remote-debugger-ports=<comma_seperated_port_list>"
+      " --gc-log-file-size=<size_in_MB>"
+      " --gc-num-log-files=<num_rotated_files>")
 
 def id_map(prefix, container_plans, add_zero_id=False):
   ids = {}
@@ -292,6 +294,9 @@ class HeronExecutor(object):
       parsed_args.jvm_remote_debugger_ports.split(",") \
         if parsed_args.jvm_remote_debugger_ports else None
 
+    self.gc_log_file_size = parsed_args.gc_log_file_size
+    self.gc_num_log_files = parsed_args.gc_num_log_files
+
   def __init__(self, args, shell_env):
     parsed_args = self.parse_args(args)
     self.init_from_parsed_args(parsed_args)
@@ -373,6 +378,9 @@ class HeronExecutor(object):
     parser.add_argument("--jvm-remote-debugger-ports", required=False,
                         help="ports to be used by a remote debugger for JVM instances")
 
+    parser.add_argument("--gc-log-file-size", type=int, default=10)
+    parser.add_argument("--gc-num-log-files", type=int, default=5)
+
     parsed_args, unknown_args = parser.parse_known_args(args[1:])
 
     if unknown_args:
@@ -439,8 +447,8 @@ class HeronExecutor(object):
                       '-XX:+PrintGCDateStamps',
                       '-XX:+PrintGCCause',
                       '-XX:+UseGCLogFileRotation',
-                      '-XX:NumberOfGCLogFiles=5',
-                      '-XX:GCLogFileSize=100M',
+                      '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
+                      '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
                       '-XX:+PrintPromotionFailure',
                       '-XX:+PrintTenuringDistribution',
                       '-XX:+PrintHeapAtGC',
@@ -480,8 +488,8 @@ class HeronExecutor(object):
                            '-XX:+PrintGCDateStamps',
                            '-XX:+PrintGCCause',
                            '-XX:+UseGCLogFileRotation',
-                           '-XX:NumberOfGCLogFiles=5',
-                           '-XX:GCLogFileSize=100M',
+                           '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
+                           '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
                            '-XX:+PrintPromotionFailure',
                            '-XX:+PrintTenuringDistribution',
                            '-XX:+PrintHeapAtGC',
@@ -522,8 +530,8 @@ class HeronExecutor(object):
                      '-XX:+PrintGCDateStamps',
                      '-XX:+PrintGCCause',
                      '-XX:+UseGCLogFileRotation',
-                     '-XX:NumberOfGCLogFiles=5',
-                     '-XX:GCLogFileSize=100M',
+                     '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
+                     '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
                      '-XX:+PrintPromotionFailure',
                      '-XX:+PrintTenuringDistribution',
                      '-XX:+PrintHeapAtGC',
@@ -655,12 +663,11 @@ class HeronExecutor(object):
         '-XX:+PrintGCDateStamps',
         '-XX:+PrintGCCause',
         '-XX:+UseGCLogFileRotation',
-        '-XX:NumberOfGCLogFiles=5',
-        '-XX:GCLogFileSize=100M',
+        '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
+        '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
         '-XX:+PrintPromotionFailure',
         '-XX:+PrintTenuringDistribution',
         '-XX:+PrintHeapAtGC',
-        '-XX:+HeapDumpOnOutOfMemoryError',
         '-XX:+UseConcMarkSweepGC',
         '-XX:ParallelGCThreads=4',
         '-Xloggc:log-files/gc.%s.log' % instance_id,
@@ -856,8 +863,8 @@ class HeronExecutor(object):
                    '-XX:+PrintGCDateStamps',
                    '-XX:+PrintGCCause',
                    '-XX:+UseGCLogFileRotation',
-                   '-XX:NumberOfGCLogFiles=5',
-                   '-XX:GCLogFileSize=100M',
+                   '-XX:NumberOfGCLogFiles=%d' % self.gc_num_log_files,
+                   '-XX:GCLogFileSize=%dM' % self.gc_log_file_size,
                    '-XX:+PrintPromotionFailure',
                    '-XX:+PrintTenuringDistribution',
                    '-XX:+PrintHeapAtGC',
