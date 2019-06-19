@@ -49,6 +49,27 @@ public final class SubmitterUtils {
         .build();
   }
 
+  /**
+   * Create the topology config
+   *
+   * @param topologyBinaryFile name of the user submitted topology jar/tar/pex file
+   * @param topologyDefinitionPath path to the topology definition file
+   * @param topology proto in memory version of topology definition
+   * @return config the topology config
+   */
+  public static Config topologyConfigs(String topologyBinaryFile,
+      String topologyDefinitionPath, TopologyAPI.Topology topology) {
+    PackageType packageType = PackageType.getPackageType(topologyBinaryFile);
+
+    return Config.newBuilder()
+        .put(Key.TOPOLOGY_ID, topology.getId())
+        .put(Key.TOPOLOGY_NAME, topology.getName())
+        .put(Key.TOPOLOGY_DEFINITION_FILE, topologyDefinitionPath)
+        .put(Key.TOPOLOGY_BINARY_FILE, topologyBinaryFile)
+        .put(Key.TOPOLOGY_PACKAGE_TYPE, packageType)
+        .build();
+  }
+
   private SubmitterUtils() {
   }
 }

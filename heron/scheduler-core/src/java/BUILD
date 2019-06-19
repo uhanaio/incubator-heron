@@ -24,7 +24,9 @@ spi_deps_files = [
 scheduler_deps_files = \
     common_deps_files + \
     heron_java_proto_files() + \
-    spi_deps_files
+    spi_deps_files + [
+        '//heron/statemgrs/src/java:statemgrs-java',
+    ]
 
 java_library(
     name = 'scheduler-java',
