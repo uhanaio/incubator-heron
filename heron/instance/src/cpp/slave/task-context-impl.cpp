@@ -32,14 +32,16 @@ namespace heron {
 namespace instance {
 
 TaskContextImpl::TaskContextImpl(int myTaskId)
-  : myTaskId_(myTaskId), pplan_(nullptr), myComponent_(NULL),
+  : myTaskId_(myTaskId), pplan_(NULL), myComponent_(NULL),
     mySpout_(NULL), myBolt_(NULL), myInstance_(NULL),
     myMergedConfig_(new api::config::Config()) {
 }
 
-TaskContextImpl::~TaskContextImpl() {}
+TaskContextImpl::~TaskContextImpl() {
+  delete pplan_;
+}
 
-void TaskContextImpl::newPhysicalPlan(std::shared_ptr<proto::system::PhysicalPlan> pplan) {
+void TaskContextImpl::newPhysicalPlan(proto::system::PhysicalPlan* pplan) {
   cleanUp();
   pplan_ = pplan;
   for (int i = 0; i < pplan_->instances_size(); ++i) {
@@ -88,7 +90,8 @@ void TaskContextImpl::newPhysicalPlan(std::shared_ptr<proto::system::PhysicalPla
 
 void TaskContextImpl::cleanUp() {
   if (pplan_) {
-    pplan_ = nullptr;
+    delete pplan_;
+    pplan_ = NULL;
   }
   myOutputSchema_.clear();
   taskToComponentName_.clear();

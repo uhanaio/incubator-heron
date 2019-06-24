@@ -41,7 +41,7 @@ class MetricsMgrClient : public Client {
  public:
   MetricsMgrClient(const sp_string& _hostname, sp_int32 _port, const sp_string& _component_name,
                    const sp_string& _instance_id, int instance_index,
-                   std::shared_ptr<EventLoop> eventLoop, const NetworkOptions& options);
+                   EventLoop* eventLoop, const NetworkOptions& options);
   ~MetricsMgrClient();
 
   void SendMetrics(proto::system::MetricPublisherPublishMessage* _message);
@@ -57,8 +57,7 @@ class MetricsMgrClient : public Client {
   void InternalSendMetricsCacheLocation();
   void ReConnect();
   void SendRegisterRequest();
-  void HandleRegisterResponse(void* _ctx,
-                              unique_ptr<proto::system::MetricPublisherRegisterResponse> _respose,
+  void HandleRegisterResponse(void* _ctx, proto::system::MetricPublisherRegisterResponse* _respose,
                               NetworkErrorCode _status);
 
   sp_string hostname_;

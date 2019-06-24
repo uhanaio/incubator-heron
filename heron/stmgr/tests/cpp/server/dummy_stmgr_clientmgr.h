@@ -27,8 +27,7 @@
 
 class DummyStMgrClientMgr : public heron::stmgr::StMgrClientMgr {
  public:
-  DummyStMgrClientMgr(std::shared_ptr<EventLoop> _eventLoop,
-                      std::shared_ptr<heron::common::MetricsMgrSt> const& _metrics,
+  DummyStMgrClientMgr(EventLoop* _eventLoop, heron::common::MetricsMgrSt* _metrics,
                       const std::string& _stmgr,
                       heron::proto::system::PhysicalPlan* _pplan)
   : heron::stmgr::StMgrClientMgr(_eventLoop, _pplan->topology().name(),

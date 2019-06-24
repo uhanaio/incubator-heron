@@ -32,13 +32,12 @@
 namespace heron {
 namespace instance {
 
-StMgrClient::StMgrClient(
-                   std::shared_ptr<EventLoop> eventLoop, const NetworkOptions& options,
-                   const std::string& topologyName, const std::string& topologyId,
-                   const proto::system::Instance& instanceProto,
-                   std::shared_ptr<GatewayMetrics> gatewayMetrics,
-                   std::function<void(std::unique_ptr<proto::system::PhysicalPlan>)> pplanWatcher,
-                   std::function<void(std::unique_ptr<proto::system::HeronTupleSet2>)> tupleWatcher)
+StMgrClient::StMgrClient(EventLoop* eventLoop, const NetworkOptions& options,
+                         const std::string& topologyName, const std::string& topologyId,
+                         const proto::system::Instance& instanceProto,
+                         std::shared_ptr<GatewayMetrics> gatewayMetrics,
+                         std::function<void(proto::system::PhysicalPlan*)> pplanWatcher,
+                         std::function<void(proto::system::HeronTupleSet2*)> tupleWatcher)
     : Client(eventLoop, options),
       topologyName_(topologyName),
       topologyId_(topologyId),
@@ -98,35 +97,32 @@ void StMgrClient::HandleClose(NetworkErrorCode code) {
   AddTimer([this]() { this->OnReconnectTimer(); }, reconnect_interval_ * 1000 * 1000);
 }
 
-void StMgrClient::HandleRegisterResponse(
-    void*,
-    unique_ptr<proto::stmgr::RegisterInstanceResponse> response,
-    NetworkErrorCode status) {
+void StMgrClient::HandleRegisterResponse(void*, proto::stmgr::RegisterInstanceResponse* response,
+                                         NetworkErrorCode status) {
   if (status != OK) {
     LOG(ERROR) << "NonOK network code " << status << " for register response from stmgr "
                << instanceProto_.stmgr_id() << " running at " << get_clientoptions().get_host()
                << ":" << get_clientoptions().get_port();
+    delete response;
     Stop();
     return;
   }
-
   proto::system::StatusCode stat = response->status().status();
-
   if (stat != proto::system::OK) {
     LOG(ERROR) << "NonOK register response " << stat << " from stmgr "
                << instanceProto_.stmgr_id() << " running at "
                << get_clientoptions().get_host() << ":" << get_clientoptions().get_port();
+    delete response;
     Stop();
     return;
   }
-
   LOG(INFO) << "Registered with our stmgr " << instanceProto_.stmgr_id() << " running at "
               << get_clientoptions().get_host() << ":" << get_clientoptions().get_port();
-
   if (response->has_pplan()) {
     LOG(INFO) << "Registration response had a pplan";
-    pplanWatcher_(std::move(unique_ptr<proto::system::PhysicalPlan>(response->release_pplan())));
+    pplanWatcher_(response->release_pplan());
   }
+  delete response;
 }
 
 void StMgrClient::OnReconnectTimer() { Start(); }
@@ -136,20 +132,21 @@ void StMgrClient::SendRegisterRequest() {
   request->set_topology_name(topologyName_);
   request->set_topology_id(topologyId_);
   request->mutable_instance()->CopyFrom(instanceProto_);
-  SendRequest(std::move(request), nullptr);
+  SendRequest(std::move(request), NULL);
   return;
 }
 
-void StMgrClient::HandlePhysicalPlan(unique_ptr<proto::stmgr::NewInstanceAssignmentMessage> msg) {
+void StMgrClient::HandlePhysicalPlan(proto::stmgr::NewInstanceAssignmentMessage* msg) {
   LOG(INFO) << "Got a Physical Plan from our stmgr " << instanceProto_.stmgr_id() << " running at "
-            << get_clientoptions().get_host() << ":" << get_clientoptions().get_port();
-  pplanWatcher_(std::move(unique_ptr<proto::system::PhysicalPlan>(msg->release_pplan())));
+              << get_clientoptions().get_host() << ":" << get_clientoptions().get_port();
+  pplanWatcher_(msg->release_pplan());
+  delete msg;
 }
 
-void StMgrClient::HandleTupleMessage(unique_ptr<proto::system::HeronTupleSet2> msg) {
+void StMgrClient::HandleTupleMessage(proto::system::HeronTupleSet2* msg) {
   gatewayMetrics_->updateReceivedPacketsCount(1);
   gatewayMetrics_->updateReceivedPacketsSize(msg->ByteSize());
-  tupleWatcher_(std::move(msg));
+  tupleWatcher_(msg);
 }
 
 void StMgrClient::SendTupleMessage(const proto::system::HeronTupleSet& msg) {

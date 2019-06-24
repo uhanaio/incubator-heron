@@ -40,8 +40,7 @@ namespace tmaster {
 /*
  * HTTP service controller.
  */
-TController::TController(std::shared_ptr<EventLoop> eventLoop, const NetworkOptions& options,
-        TMaster* tmaster)
+TController::TController(EventLoop* eventLoop, const NetworkOptions& options, TMaster* tmaster)
     : tmaster_(tmaster) {
   http_server_ = make_unique<HTTPServer>(eventLoop, options);
   /*

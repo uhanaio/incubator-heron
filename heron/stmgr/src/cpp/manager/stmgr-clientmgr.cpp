@@ -39,12 +39,12 @@ using std::make_shared;
 // New connections made with other stream managers.
 const sp_string METRIC_STMGR_NEW_CONNECTIONS = "__stmgr_new_connections";
 
-StMgrClientMgr::StMgrClientMgr(shared_ptr<EventLoop> eventLoop, const sp_string& _topology_name,
-                             const sp_string& _topology_id, const sp_string& _stmgr_id,
-                             StMgr* _stream_manager,
-                             shared_ptr<heron::common::MetricsMgrSt> const& _metrics_manager_client,
-                             sp_int64 _high_watermark, sp_int64 _low_watermark,
-                             bool _droptuples_upon_backpressure)
+StMgrClientMgr::StMgrClientMgr(EventLoop* eventLoop, const sp_string& _topology_name,
+                               const sp_string& _topology_id, const sp_string& _stmgr_id,
+                               StMgr* _stream_manager,
+                               heron::common::MetricsMgrSt* _metrics_manager_client,
+                               sp_int64 _high_watermark, sp_int64 _low_watermark,
+                               bool _droptuples_upon_backpressure)
     : topology_name_(_topology_name),
       topology_id_(_topology_id),
       stmgr_id_(_stmgr_id),
@@ -61,15 +61,14 @@ StMgrClientMgr::StMgrClientMgr(shared_ptr<EventLoop> eventLoop, const sp_string&
 StMgrClientMgr::~StMgrClientMgr() {
   // This should not be called
   metrics_manager_client_->unregister_metric("__clientmgr");
-  clients_.clear();
 }
 
-void StMgrClientMgr::StartConnections(proto::system::PhysicalPlan const& _pplan) {
+void StMgrClientMgr::StartConnections(const proto::system::PhysicalPlan* _pplan) {
   // TODO(vikasr) : Currently we establish connections with all streammanagers
   // In the next iteration we might want to make it better
   std::unordered_set<sp_string> all_stmgrs;
-  for (sp_int32 i = 0; i < _pplan.stmgrs_size(); ++i) {
-    const proto::system::StMgr& s = _pplan.stmgrs(i);
+  for (sp_int32 i = 0; i < _pplan->stmgrs_size(); ++i) {
+    const proto::system::StMgr& s = _pplan->stmgrs(i);
     if (s.id() == stmgr_id_) {
       continue;  // dont want to connect to ourselves
     }
@@ -115,7 +114,7 @@ bool StMgrClientMgr::DidAnnounceBackPressure() {
   return stream_manager_->DidAnnounceBackPressure();
 }
 
-shared_ptr<StMgrClient> StMgrClientMgr::CreateClient(const sp_string& _other_stmgr_id,
+StMgrClient* StMgrClientMgr::CreateClient(const sp_string& _other_stmgr_id,
                                           const sp_string& _hostname, sp_int32 _port) {
   stmgr_clientmgr_metrics_->scope(METRIC_STMGR_NEW_CONNECTIONS)->incr();
   NetworkOptions options;
@@ -126,7 +125,7 @@ shared_ptr<StMgrClient> StMgrClientMgr::CreateClient(const sp_string& _other_stm
   options.set_high_watermark(high_watermark_);
   options.set_low_watermark(low_watermark_);
   options.set_socket_family(PF_INET);
-  auto client = make_shared<StMgrClient>(eventLoop_, options, topology_name_, topology_id_,
+  StMgrClient* client = new StMgrClient(eventLoop_, options, topology_name_, topology_id_,
                                         stmgr_id_, _other_stmgr_id, this, metrics_manager_client_,
                                         droptuples_upon_backpressure_);
   client->Start();

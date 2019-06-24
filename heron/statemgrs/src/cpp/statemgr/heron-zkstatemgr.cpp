@@ -32,7 +32,7 @@ namespace heron {
 namespace common {
 
 HeronZKStateMgr::HeronZKStateMgr(const std::string& zkhostport, const std::string& topleveldir,
-                                 std::shared_ptr<EventLoop> eventLoop, bool exitOnSessionExpiry)
+                                 EventLoop* eventLoop, bool exitOnSessionExpiry)
     : HeronStateMgr(topleveldir),
       zkhostport_(zkhostport),
       zkclient_(NULL),
@@ -44,8 +44,7 @@ HeronZKStateMgr::HeronZKStateMgr(const std::string& zkhostport, const std::strin
 }
 
 HeronZKStateMgr::HeronZKStateMgr(const std::string& zkhostport, const std::string& topleveldir,
-                                 std::shared_ptr<EventLoop> eventLoop,
-                                 ZKClientFactory* zkclient_factory,
+                                 EventLoop* eventLoop, ZKClientFactory* zkclient_factory,
                                  bool exitOnSessionExpiry)
     : HeronStateMgr(topleveldir),
       zkhostport_(zkhostport),
@@ -131,7 +130,7 @@ void HeronZKStateMgr::SetMetricsCacheLocation(const proto::tmaster::MetricsCache
 }
 
 void HeronZKStateMgr::GetTMasterLocation(const std::string& _topology_name,
-                                         shared_ptr<proto::tmaster::TMasterLocation> _return,
+                                         proto::tmaster::TMasterLocation* _return,
                                          VCallback<proto::system::StatusCode> cb) {
   std::string path = GetTMasterLocationPath(_topology_name);
   std::string* contents = new std::string();
@@ -144,7 +143,7 @@ void HeronZKStateMgr::GetTMasterLocation(const std::string& _topology_name,
 }
 
 void HeronZKStateMgr::GetMetricsCacheLocation(const std::string& _topology_name,
-                                         shared_ptr<proto::tmaster::MetricsCacheLocation> _return,
+                                         proto::tmaster::MetricsCacheLocation* _return,
                                          VCallback<proto::system::StatusCode> cb) {
   std::string path = GetMetricsCacheLocationPath(_topology_name);
   std::string* contents = new std::string();
@@ -406,7 +405,7 @@ void HeronZKStateMgr::SetMetricsCacheLocationDone(VCallback<proto::system::Statu
 }
 
 void HeronZKStateMgr::GetTMasterLocationDone(std::string* _contents,
-                                             shared_ptr<proto::tmaster::TMasterLocation> _return,
+                                             proto::tmaster::TMasterLocation* _return,
                                              VCallback<proto::system::StatusCode> cb,
                                              sp_int32 _rc) {
   proto::system::StatusCode code = proto::system::OK;
@@ -427,9 +426,9 @@ void HeronZKStateMgr::GetTMasterLocationDone(std::string* _contents,
 }
 
 void HeronZKStateMgr::GetMetricsCacheLocationDone(std::string* _contents,
-                                         shared_ptr<proto::tmaster::MetricsCacheLocation> _return,
-                                         VCallback<proto::system::StatusCode> cb,
-                                         sp_int32 _rc) {
+                                             proto::tmaster::MetricsCacheLocation* _return,
+                                             VCallback<proto::system::StatusCode> cb,
+                                             sp_int32 _rc) {
   proto::system::StatusCode code = proto::system::OK;
   if (_rc == ZOK) {
     if (!_return->ParseFromString(*_contents)) {

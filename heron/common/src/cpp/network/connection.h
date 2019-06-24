@@ -72,8 +72,7 @@ class Connection : public BaseConnection {
    * `options` is also created by the caller and the caller owns it. options
    *  should be active throught the lifetime of the Connection object.
    */
-  Connection(ConnectionEndPoint* endpoint, ConnectionOptions* options,
-          std::shared_ptr<EventLoop> eventLoop);
+  Connection(ConnectionEndPoint* endpoint, ConnectionOptions* options, EventLoop* eventLoop);
   virtual ~Connection();
 
   /**

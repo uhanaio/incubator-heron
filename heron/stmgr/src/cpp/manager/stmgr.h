@@ -62,10 +62,10 @@ class CkptMgrClient;
 
 class StMgr {
  public:
-  StMgr(shared_ptr<EventLoop> eventLoop, const sp_string& _myhost, sp_int32 _data_port,
+  StMgr(EventLoop* eventLoop, const sp_string& _myhost, sp_int32 _data_port,
         sp_int32 _local_data_port,
         const sp_string& _topology_name, const sp_string& _topology_id,
-        shared_ptr<proto::api::Topology> _topology, const sp_string& _stmgr_id,
+        proto::api::Topology* _topology, const sp_string& _stmgr_id,
         const std::vector<sp_string>& _instances, const sp_string& _zkhostport,
         const sp_string& _zkroot, sp_int32 _metricsmgr_port, sp_int32 _shell_port,
         sp_int32 _ckptmgr_port, const sp_string& _ckptmgr_id,
@@ -77,11 +77,11 @@ class StMgr {
   void Init();
 
   // Called by tmaster client when a new physical plan is available
-  void NewPhysicalPlan(shared_ptr<proto::system::PhysicalPlan> pplan);
+  void NewPhysicalPlan(proto::system::PhysicalPlan* pplan);
   void HandleStreamManagerData(const sp_string& _stmgr_id,
-                               unique_ptr<proto::stmgr::TupleStreamMessage> _message);
+                               proto::stmgr::TupleStreamMessage* _message);
   void HandleInstanceData(sp_int32 _task_id, bool _local_spout,
-                          unique_ptr<proto::system::HeronTupleSet> _message);
+                          proto::system::HeronTupleSet* _message);
   // Called when an instance does checkpoint and sends its checkpoint
   // to the stmgr to save it
   void HandleStoreInstanceStateCheckpoint(
@@ -92,7 +92,7 @@ class StMgr {
   void DrainDownstreamCheckpoint(sp_int32 _task_id,
                                 proto::ckptmgr::DownstreamStatefulCheckpoint* _message);
 
-  const shared_ptr<proto::system::PhysicalPlan> GetPhysicalPlan() const;
+  const proto::system::PhysicalPlan* GetPhysicalPlan() const;
 
   // Forward the call to the StmgrServer
   virtual void StartBackPressureOnServer(const sp_string& _other_stmgr_id);
@@ -124,10 +124,9 @@ class StMgr {
                                           const std::string& _checkpoint_id);
 
  private:
-  void OnTMasterLocationFetch(shared_ptr<proto::tmaster::TMasterLocation> _tmaster,
-          proto::system::StatusCode);
+  void OnTMasterLocationFetch(proto::tmaster::TMasterLocation* _tmaster, proto::system::StatusCode);
   void OnMetricsCacheLocationFetch(
-         shared_ptr<proto::tmaster::MetricsCacheLocation> _tmaster, proto::system::StatusCode);
+         proto::tmaster::MetricsCacheLocation* _tmaster, proto::system::StatusCode);
   void FetchTMasterLocation();
   void FetchMetricsCacheLocation();
   // A wrapper that calls FetchTMasterLocation. Needed for RegisterTimer
@@ -167,17 +166,16 @@ class StMgr {
 
   sp_int32 ExtractTopologyTimeout(const proto::api::Topology& _topology);
 
-  void CreateTMasterClient(shared_ptr<proto::tmaster::TMasterLocation> tmasterLocation);
+  void CreateTMasterClient(proto::tmaster::TMasterLocation* tmasterLocation);
   void StartStmgrServer();
   void StartInstanceServer();
   void CreateTupleCache();
   // This is called when we receive a valid new Tmaster Location.
   // Performs all the actions necessary to deal with new tmaster.
-  void HandleNewTmaster(shared_ptr<proto::tmaster::TMasterLocation> newTmasterLocation);
+  void HandleNewTmaster(proto::tmaster::TMasterLocation* newTmasterLocation);
   // Broadcast the tmaster location changes to other components. (MM for now)
-  void BroadcastTmasterLocation(shared_ptr<proto::tmaster::TMasterLocation> tmasterLocation);
-  void BroadcastMetricsCacheLocation(
-          shared_ptr<proto::tmaster::MetricsCacheLocation> tmasterLocation);
+  void BroadcastTmasterLocation(proto::tmaster::TMasterLocation* tmasterLocation);
+  void BroadcastMetricsCacheLocation(proto::tmaster::MetricsCacheLocation* tmasterLocation);
 
   // Called when TMaster sends a InitiateStatefulCheckpoint message with a checkpoint_id
   // This will send intiate checkpoint messages to local instances to capture their state.
@@ -200,11 +198,11 @@ class StMgr {
   // Patch new physical plan with internal hydrated topology but keep new topology data:
   // - new topology state
   // - new topology/component config
-  static void PatchPhysicalPlanWithHydratedTopology(shared_ptr<proto::system::PhysicalPlan> _pplan,
-                                                    proto::api::Topology const& _topology);
+  static void PatchPhysicalPlanWithHydratedTopology(proto::system::PhysicalPlan* _pplan,
+                                                    proto::api::Topology* _topology);
 
   shared_ptr<heron::common::HeronStateMgr> state_mgr_;
-  shared_ptr<proto::system::PhysicalPlan> pplan_;
+  proto::system::PhysicalPlan* pplan_;
   sp_string topology_name_;
   sp_string topology_id_;
   sp_string stmgr_id_;
@@ -213,37 +211,36 @@ class StMgr {
   sp_int32 local_data_port_;
   std::vector<sp_string> instances_;
   // Getting data from other streammgrs
-  shared_ptr<StMgrServer> stmgr_server_;
+  StMgrServer* stmgr_server_;
   // Used to get/send data to local instances
-  shared_ptr<InstanceServer> instance_server_;
+  InstanceServer* instance_server_;
   // Pushing data to other streammanagers
-  shared_ptr<StMgrClientMgr> clientmgr_;
-  shared_ptr<TMasterClient> tmaster_client_;
-  shared_ptr<EventLoop> eventLoop_;
+  StMgrClientMgr* clientmgr_;
+  TMasterClient* tmaster_client_;
+  EventLoop* eventLoop_;
 
   // Map of task_id to stmgr_id
   std::unordered_map<sp_int32, sp_string> task_id_to_stmgr_;
   // map of <component, streamid> to its consumers
-  std::unordered_map<std::pair<sp_string, sp_string>,
-                     unique_ptr<StreamConsumers>> stream_consumers_;
+  std::unordered_map<std::pair<sp_string, sp_string>, StreamConsumers*> stream_consumers_;
   // xor managers
-  shared_ptr<XorManager> xor_mgrs_;
+  XorManager* xor_mgrs_;
   // Tuple Cache to optimize message building
-  shared_ptr<TupleCache> tuple_cache_;
+  TupleCache* tuple_cache_;
   // Neighbour Calculator for stateful processing
-  shared_ptr<NeighbourCalculator> neighbour_calculator_;
+  NeighbourCalculator* neighbour_calculator_;
   // Stateful Restorer
-  shared_ptr<StatefulRestorer> stateful_restorer_;
+  StatefulRestorer* stateful_restorer_;
 
   // This is the topology structure
   // that contains the full component objects
-  shared_ptr<proto::api::Topology> hydrated_topology_;
+  proto::api::Topology* hydrated_topology_;
 
   // Metrics Manager
-  shared_ptr<heron::common::MetricsMgrSt> metrics_manager_client_;
+  heron::common::MetricsMgrSt* metrics_manager_client_;
 
   // Checkpoint Manager
-  shared_ptr<CkptMgrClient> ckptmgr_client_;
+  CkptMgrClient* ckptmgr_client_;
 
   // Process related metrics
   shared_ptr<heron::common::MultiAssignableMetric> stmgr_process_metrics_;

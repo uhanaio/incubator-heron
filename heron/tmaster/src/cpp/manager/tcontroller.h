@@ -31,13 +31,11 @@
 namespace heron {
 namespace tmaster {
 
-using std::shared_ptr;
-
 class TMaster;
 
 class TController {
  public:
-  TController(shared_ptr<EventLoop> eventLoop, const NetworkOptions& options, TMaster* tmaster);
+  TController(EventLoop* eventLoop, const NetworkOptions& options, TMaster* tmaster);
   virtual ~TController();
 
   // Starts the controller

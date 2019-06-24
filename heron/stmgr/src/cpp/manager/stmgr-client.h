@@ -41,11 +41,10 @@ class StMgrClientMgr;
 
 class StMgrClient : public Client {
  public:
-  StMgrClient(shared_ptr<EventLoop> eventLoop, const NetworkOptions& _options,
-              const sp_string& _topology_name,
+  StMgrClient(EventLoop* eventLoop, const NetworkOptions& _options, const sp_string& _topology_name,
               const sp_string& _topology_id, const sp_string& _our_id, const sp_string& _other_id,
               StMgrClientMgr* _client_manager,
-              shared_ptr<heron::common::MetricsMgrSt> const& _metrics_manager_client,
+              heron::common::MetricsMgrSt* _metrics_manager_client,
               bool _droptuples_upon_backpressure);
   virtual ~StMgrClient();
 
@@ -63,11 +62,8 @@ class StMgrClient : public Client {
   virtual void HandleClose(NetworkErrorCode status);
 
  private:
-  void HandleHelloResponse(
-          void*,
-          unique_ptr<proto::stmgr::StrMgrHelloResponse> _response,
-          NetworkErrorCode);
-  void HandleTupleStreamMessage(unique_ptr<proto::stmgr::TupleStreamMessage> _message);
+  void HandleHelloResponse(void*, proto::stmgr::StrMgrHelloResponse* _response, NetworkErrorCode);
+  void HandleTupleStreamMessage(proto::stmgr::TupleStreamMessage* _message);
 
   void OnReConnectTimer();
   void SendHelloRequest();
@@ -84,7 +80,7 @@ class StMgrClient : public Client {
 
   StMgrClientMgr* client_manager_;
   // Metrics
-  shared_ptr<heron::common::MetricsMgrSt> metrics_manager_client_;
+  heron::common::MetricsMgrSt* metrics_manager_client_;
   shared_ptr<heron::common::MultiCountMetric> stmgr_client_metrics_;
 
   // Configs to be read

@@ -87,16 +87,13 @@ const sp_string CONNECTION_BUFFER_LENGTH_BY_INSTANCEID =
 const sp_int64 SYSTEM_METRICS_SAMPLE_INTERVAL_MICROSECOND = 10_s;
 
 
-InstanceServer::InstanceServer(
-    shared_ptr<EventLoop> eventLoop,
-    const NetworkOptions& _options,
-    const sp_string& _topology_name, const sp_string& _topology_id,
-    const sp_string& _stmgr_id,
-    const std::vector<sp_string>& _expected_instances,
-    StMgr* _stmgr,
-    shared_ptr<heron::common::MetricsMgrSt> const& _metrics_manager_client,
-    shared_ptr<NeighbourCalculator> _neighbour_calculator,
-    bool _droptuples_upon_backpressure)
+InstanceServer::InstanceServer(EventLoop* eventLoop, const NetworkOptions& _options,
+                               const sp_string& _topology_name, const sp_string& _topology_id,
+                               const sp_string& _stmgr_id,
+                               const std::vector<sp_string>& _expected_instances, StMgr* _stmgr,
+                               heron::common::MetricsMgrSt* _metrics_manager_client,
+                               NeighbourCalculator* _neighbour_calculator,
+                               bool _droptuples_upon_backpressure)
     : Server(eventLoop, _options),
       topology_name_(_topology_name),
       topology_id_(_topology_id),
@@ -126,7 +123,7 @@ InstanceServer::InstanceServer(
 
   sp_uint64 drain_threshold_bytes =
     config::HeronInternalsConfigReader::Instance()->GetHeronStreammgrStatefulBufferSizeMb() * 1_MB;
-  stateful_gateway_ = make_shared<CheckpointGateway>(drain_threshold_bytes, neighbour_calculator_,
+  stateful_gateway_ = new CheckpointGateway(drain_threshold_bytes, neighbour_calculator_,
                                             metrics_manager_client_,
     std::bind(&InstanceServer::DrainTupleSet, this, std::placeholders::_1, std::placeholders::_2),
     std::bind(&InstanceServer::DrainTupleStream, this, std::placeholders::_1),
@@ -185,6 +182,8 @@ InstanceServer::~InstanceServer() {
   for (auto iter = instance_info_.begin(); iter != instance_info_.end(); ++iter) {
     delete iter->second;
   }
+
+  delete stateful_gateway_;
 }
 
 void InstanceServer::GetInstanceInfo(std::vector<proto::system::Instance*>& _return) {
@@ -287,7 +286,7 @@ void InstanceServer::HandleConnectionClose(Connection* _conn, NetworkErrorCode) 
 }
 
 void InstanceServer::HandleRegisterInstanceRequest(REQID _reqid, Connection* _conn,
-                                       unique_ptr<proto::stmgr::RegisterInstanceRequest> _request) {
+    proto::stmgr::RegisterInstanceRequest* _request) {
   LOG(INFO) << "Got HandleRegisterInstanceRequest from connection " << _conn << " and instance "
             << _request->instance().instance_id();
   // Do some basic checks
@@ -357,7 +356,7 @@ void InstanceServer::HandleRegisterInstanceRequest(REQID _reqid, Connection* _co
 
     proto::stmgr::RegisterInstanceResponse response;
     response.mutable_status()->set_status(proto::system::OK);
-    const shared_ptr<proto::system::PhysicalPlan> pplan = stmgr_->GetPhysicalPlan();
+    const proto::system::PhysicalPlan* pplan = stmgr_->GetPhysicalPlan();
     if (pplan) {
       response.mutable_pplan()->CopyFrom(*pplan);
     }
@@ -374,16 +373,17 @@ void InstanceServer::HandleRegisterInstanceRequest(REQID _reqid, Connection* _co
       stmgr_->HandleAllInstancesConnected();
     }
   }
+  delete _request;
 }
 
 void InstanceServer::HandleTupleSetMessage(Connection* _conn,
-                                           unique_ptr<proto::system::HeronTupleSet> _message) {
+                                        proto::system::HeronTupleSet* _message) {
   auto iter = active_instances_.find(_conn);
   if (iter == active_instances_.end()) {
     LOG(ERROR) << "Received TupleSet from unknown instance connection. Dropping..";
+    __global_protobuf_pool_release__(_message);
     return;
   }
-
   if (_message->has_data()) {
     instance_server_metrics_->scope(METRIC_DATA_TUPLES_FROM_INSTANCES)
         ->incr_by(_message->data().tuples_size());
@@ -393,12 +393,11 @@ void InstanceServer::HandleTupleSetMessage(Connection* _conn,
     instance_server_metrics_->scope(METRIC_FAIL_TUPLES_FROM_INSTANCES)
         ->incr_by(_message->control().fails_size());
   }
-
-  stmgr_->HandleInstanceData(iter->second, instance_info_[iter->second]->local_spout_,
-                             std::move(_message));
+  stmgr_->HandleInstanceData(iter->second, instance_info_[iter->second]->local_spout_, _message);
+  __global_protobuf_pool_release__(_message);
 }
 
-void InstanceServer::SendToInstance2(unique_ptr<proto::stmgr::TupleStreamMessage> _message) {
+void InstanceServer::SendToInstance2(proto::stmgr::TupleStreamMessage* _message) {
   sp_string instance_id = task_id_to_name[_message->task_id()];
   ConnectionBufferLengthMetricMap::const_iterator it =
     connection_buffer_length_metric_map_.find(instance_id);
@@ -406,7 +405,7 @@ void InstanceServer::SendToInstance2(unique_ptr<proto::stmgr::TupleStreamMessage
     connection_buffer_length_metric_map_
       [instance_id]->scope("packets")->incr_by(_message->num_tuples());
 
-  stateful_gateway_->SendToInstance(std::move(_message));
+  stateful_gateway_->SendToInstance(_message);
 }
 
 void InstanceServer::DrainTupleStream(proto::stmgr::TupleStreamMessage* _message) {
@@ -469,7 +468,7 @@ void InstanceServer::DrainTupleSet(sp_int32 _task_id,
 }
 
 void InstanceServer::DrainCheckpoint(sp_int32 _task_id,
-                                  unique_ptr<proto::ckptmgr::InitiateStatefulCheckpoint> _message) {
+                                  proto::ckptmgr::InitiateStatefulCheckpoint* _message) {
   TaskIdInstanceDataMap::iterator iter = instance_info_.find(_task_id);
   if (iter == instance_info_.end() || iter->second->conn_ == NULL) {
     LOG(ERROR) << "task_id " << _task_id << " has not yet connected to us. Dropping...";
@@ -477,6 +476,7 @@ void InstanceServer::DrainCheckpoint(sp_int32 _task_id,
     LOG(INFO) << "Sending Initiate Checkpoint Message to local task " << _task_id;
     SendMessage(iter->second->conn_, *_message);
   }
+  __global_protobuf_pool_release__(_message);
 }
 
 void InstanceServer::BroadcastNewPhysicalPlan(const proto::system::PhysicalPlan& _pplan) {
@@ -639,52 +639,58 @@ void InstanceServer::InitiateStatefulCheckpoint(const sp_string& _checkpoint_tag
                 << _checkpoint_tag << " to local spout "
                 << iter->second->instance_->info().component_name()
                 << " with task_id " << iter->second->instance_->info().task_id();
-      auto message = make_unique<proto::ckptmgr::InitiateStatefulCheckpoint>();
+      proto::ckptmgr::InitiateStatefulCheckpoint* message = nullptr;
+      message = __global_protobuf_pool_acquire__(message);
       message->set_checkpoint_id(_checkpoint_tag);
       SendMessage(iter->second->conn_, *message);
+      __global_protobuf_pool_release__(message);
     }
   }
 }
 
 void InstanceServer::HandleStoreInstanceStateCheckpointMessage(Connection* _conn,
-                               unique_ptr<proto::ckptmgr::StoreInstanceStateCheckpoint> _message) {
+                               proto::ckptmgr::StoreInstanceStateCheckpoint* _message) {
   ConnectionTaskIdMap::iterator iter = active_instances_.find(_conn);
   if (iter == active_instances_.end()) {
     LOG(ERROR) << "Hmm.. Got InstaceStateCheckpoint Message from an unknown connection";
+    __global_protobuf_pool_release__(_message);
     return;
   }
-
   sp_int32 task_id = iter->second;
   TaskIdInstanceDataMap::iterator it = instance_info_.find(task_id);
   if (it == instance_info_.end()) {
     LOG(ERROR) << "Hmm.. Got InstaceStateCheckpoint Message from unknown task_id "
                << task_id;
+    __global_protobuf_pool_release__(_message);
     return;
   }
 
   // send the checkpoint message to all downstream task ids
   stmgr_->HandleStoreInstanceStateCheckpoint(_message->state(), *(it->second->instance_));
+  __global_protobuf_pool_release__(_message);
 }
 
 void InstanceServer::HandleRestoreInstanceStateResponse(Connection* _conn,
-                               unique_ptr<proto::ckptmgr::RestoreInstanceStateResponse> _message) {
+                               proto::ckptmgr::RestoreInstanceStateResponse* _message) {
   ConnectionTaskIdMap::iterator iter = active_instances_.find(_conn);
   if (iter == active_instances_.end()) {
     LOG(ERROR) << "Hmm.. Got RestoreInstanceStateResponse Message from an unknown connection";
+    __global_protobuf_pool_release__(_message);
     return;
   }
-
   sp_int32 task_id = iter->second;
   TaskIdInstanceDataMap::iterator it = instance_info_.find(task_id);
   if (it == instance_info_.end()) {
     LOG(ERROR) << "Hmm.. Got RestoreInstanceStateResponse Message from unknown task_id "
                << task_id;
+    __global_protobuf_pool_release__(_message);
     return;
   }
 
   // send the checkpoint message to all downstream task ids
   stmgr_->HandleRestoreInstanceStateResponse(task_id, _message->status(),
                                              _message->checkpoint_id());
+  __global_protobuf_pool_release__(_message);
 }
 
 void InstanceServer::HandleCheckpointMarker(sp_int32 _src_task_id, sp_int32 _destination_task_id,
@@ -703,9 +709,11 @@ bool InstanceServer::SendRestoreInstanceStateRequest(sp_int32 _task_id,
   }
   Connection* conn = instance_info_[_task_id]->conn_;
   if (conn) {
-    auto message = make_unique<proto::ckptmgr::RestoreInstanceStateRequest>();
+    proto::ckptmgr::RestoreInstanceStateRequest* message = nullptr;
+    message = __global_protobuf_pool_acquire__(message);
     message->mutable_state()->CopyFrom(_state);
     SendMessage(conn, *message);
+    __global_protobuf_pool_release__(message);
     return true;
   } else {
     LOG(WARNING) << "Cannot send RestoreInstanceState Request to task "
@@ -718,9 +726,11 @@ void InstanceServer::SendStartInstanceStatefulProcessing(const std::string& _ckp
   for (auto kv : instance_info_) {
     Connection* conn = kv.second->conn_;
     if (conn) {
-      auto message = make_unique<proto::ckptmgr::StartInstanceStatefulProcessing>();
+      proto::ckptmgr::StartInstanceStatefulProcessing* message = nullptr;
+      message = __global_protobuf_pool_acquire__(message);
       message->set_checkpoint_id(_ckpt_id);
       SendMessage(conn, *message);
+      __global_protobuf_pool_release__(message);
     } else {
       LOG(WARNING) << "Cannot send StartInstanceStatefulProcessing to task "
                    << kv.first << " because it is not connected to us";

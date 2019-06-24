@@ -33,7 +33,7 @@ using std::unique_ptr;
 
 class CkptMgrClient : public Client {
  public:
-  CkptMgrClient(std::shared_ptr<EventLoop> eventLoop, const NetworkOptions& _options,
+  CkptMgrClient(EventLoop* eventLoop, const NetworkOptions& _options,
                 const sp_string& _topology_name, const sp_string& _topology_id,
                 const sp_string& _our_ckptmgr_id, const sp_string& _our_stmgr_id,
                 std::function<void(const proto::system::Instance&,
@@ -55,18 +55,16 @@ class CkptMgrClient : public Client {
   void GetInstanceState(const proto::system::Instance& _instance,
                         const std::string& _checkpoint_id, int32_t* _nattempts);
   virtual void HandleSaveInstanceStateResponse(void*,
-                             unique_ptr<proto::ckptmgr::SaveInstanceStateResponse> _response,
+                             proto::ckptmgr::SaveInstanceStateResponse* _response,
                              NetworkErrorCode status);
   virtual void HandleGetInstanceStateResponse(void*,
-                             unique_ptr<proto::ckptmgr::GetInstanceStateResponse> _response,
+                             proto::ckptmgr::GetInstanceStateResponse* _response,
                              NetworkErrorCode status);
   virtual void HandleConnect(NetworkErrorCode status);
   virtual void HandleClose(NetworkErrorCode status);
 
  private:
-  void HandleRegisterStMgrResponse(
-                                   void *,
-                                   unique_ptr<proto::ckptmgr::RegisterStMgrResponse >_response,
+  void HandleRegisterStMgrResponse(void *, proto::ckptmgr::RegisterStMgrResponse *_response,
                                    NetworkErrorCode);
   void SendRegisterRequest();
 

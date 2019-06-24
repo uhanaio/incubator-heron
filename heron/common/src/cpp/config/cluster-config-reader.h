@@ -25,7 +25,7 @@ namespace config {
 
 class ClusterConfigReader : public YamlFileReader {
  public:
-  ClusterConfigReader(std::shared_ptr<EventLoop> eventLoop, const sp_string& _defaults_file);
+  ClusterConfigReader(EventLoop* eventLoop, const sp_string& _defaults_file);
   virtual ~ClusterConfigReader();
 
   // Fill topology config with cluster config

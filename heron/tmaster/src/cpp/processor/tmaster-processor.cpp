@@ -28,13 +28,11 @@
 namespace heron {
 namespace tmaster {
 
-Processor::Processor(REQID _reqid, Connection* _conn,
-                     unique_ptr<google::protobuf::Message> _request,
+Processor::Processor(REQID _reqid, Connection* _conn, google::protobuf::Message* _request,
                      TMaster* _tmaster, Server* _server)
-    : request_(std::move(_request)), tmaster_(_tmaster), server_(_server),
-      reqid_(_reqid), conn_(_conn) {}
+    : request_(_request), tmaster_(_tmaster), server_(_server), reqid_(_reqid), conn_(_conn) {}
 
-Processor::~Processor() {}
+Processor::~Processor() { delete request_; }
 
 void Processor::SendResponse(const google::protobuf::Message& _response) {
   server_->SendResponse(reqid_, conn_, _response);

@@ -29,7 +29,7 @@
 namespace heron {
 namespace instance {
 
-IMetricsRegistrarImpl::IMetricsRegistrarImpl(std::shared_ptr<EventLoop> eventLoop,
+IMetricsRegistrarImpl::IMetricsRegistrarImpl(EventLoop* eventLoop,
            NotifyingCommunicator<google::protobuf::Message*>* metricsFromSlave)
   : eventLoop_(eventLoop), metricsFromSlave_(metricsFromSlave) {
 }

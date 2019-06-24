@@ -34,8 +34,7 @@ namespace testing {
 
 class DummyStMgr : public Client {
  public:
-  DummyStMgr(std::shared_ptr<EventLoop> eventLoop, const NetworkOptions& options,
-             const sp_string& stmgr_id,
+  DummyStMgr(EventLoop* eventLoop, const NetworkOptions& options, const sp_string& stmgr_id,
              const sp_string& myhost, sp_int32 myport,
              const std::vector<proto::system::Instance*>& instances);
   ~DummyStMgr();
@@ -52,16 +51,14 @@ class DummyStMgr : public Client {
   virtual void HandleClose(NetworkErrorCode status);
 
  private:
-  void HandleRegisterResponse(void*, unique_ptr<proto::tmaster::StMgrRegisterResponse> response,
+  void HandleRegisterResponse(void*, proto::tmaster::StMgrRegisterResponse* response,
                               NetworkErrorCode);
-  void HandleHeartbeatResponse(void*, unique_ptr<proto::tmaster::StMgrHeartbeatResponse> response,
+  void HandleHeartbeatResponse(void*, proto::tmaster::StMgrHeartbeatResponse* response,
                                NetworkErrorCode);
-  void HandleNewAssignmentMessage(unique_ptr<proto::stmgr::NewPhysicalPlanMessage> message);
+  void HandleNewAssignmentMessage(proto::stmgr::NewPhysicalPlanMessage* message);
   void HandleNewPhysicalPlan(const proto::system::PhysicalPlan& pplan);
-  void HandleRestoreTopologyStateRequest(
-                                   unique_ptr<proto::ckptmgr::RestoreTopologyStateRequest> message);
-  void HandleStartProcessingMessage(
-                                  unique_ptr<proto::ckptmgr::StartStmgrStatefulProcessing> message);
+  void HandleRestoreTopologyStateRequest(proto::ckptmgr::RestoreTopologyStateRequest* message);
+  void HandleStartProcessingMessage(proto::ckptmgr::StartStmgrStatefulProcessing* message);
 
   void OnReConnectTimer();
   void OnHeartbeatTimer();

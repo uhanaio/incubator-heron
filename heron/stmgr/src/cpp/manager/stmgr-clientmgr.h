@@ -42,15 +42,14 @@ class StMgrClient;
 
 class StMgrClientMgr {
  public:
-  StMgrClientMgr(shared_ptr<EventLoop> eventLoop, const sp_string& _topology_name,
+  StMgrClientMgr(EventLoop* eventLoop, const sp_string& _topology_name,
                  const sp_string& _topology_id, const sp_string& _stmgr_id, StMgr* _stream_manager,
-                 shared_ptr<heron::common::MetricsMgrSt> const& _metrics_manager_client,
-                 sp_int64 _high_watermark, sp_int64 _low_watermark,
-                 bool _droptuples_upon_backpressure);
+                 heron::common::MetricsMgrSt* _metrics_manager_client, sp_int64 _high_watermark,
+                 sp_int64 _low_watermark, bool _droptuples_upon_backpressure);
   virtual ~StMgrClientMgr();
 
   // Start the appropriate clients based on a new physical plan
-  virtual void StartConnections(proto::system::PhysicalPlan const& _pplan);
+  virtual void StartConnections(const proto::system::PhysicalPlan* _pplan);
   // return true if we are successful in sending the message. false otherwise
   bool SendTupleStreamMessage(sp_int32 _task_id,
                               const sp_string& _stmgr_id,
@@ -79,20 +78,20 @@ class StMgrClientMgr {
   virtual bool AllStMgrClientsRegistered();
 
  private:
-  shared_ptr<StMgrClient> CreateClient(const sp_string& _other_stmgr_id,
-                            const sp_string& _host_name, sp_int32 _port);
+  StMgrClient* CreateClient(const sp_string& _other_stmgr_id, const sp_string& _host_name,
+                            sp_int32 _port);
 
   // map of stmgrid to its client
-  std::unordered_map<sp_string, shared_ptr<StMgrClient>> clients_;
+  std::unordered_map<sp_string, StMgrClient*> clients_;
 
   sp_string topology_name_;
   sp_string topology_id_;
   sp_string stmgr_id_;
-  shared_ptr<EventLoop> eventLoop_;
+  EventLoop* eventLoop_;
 
   StMgr* stream_manager_;
   // Metrics
-  shared_ptr<heron::common::MetricsMgrSt> metrics_manager_client_;
+  heron::common::MetricsMgrSt* metrics_manager_client_;
   shared_ptr<heron::common::MultiCountMetric> stmgr_clientmgr_metrics_;
 
   sp_int64 high_watermark_;

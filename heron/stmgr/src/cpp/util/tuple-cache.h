@@ -34,7 +34,7 @@ class StMgr;
 
 class TupleCache {
  public:
-  TupleCache(std::shared_ptr<EventLoop> eventLoop, sp_uint32 _drain_threshold);
+  TupleCache(EventLoop* eventLoop, sp_uint32 _drain_threshold);
   virtual ~TupleCache();
 
   template <class T>
@@ -115,7 +115,7 @@ class TupleCache {
 
   // map from task_id to the TupleList
   std::unordered_map<sp_int32, TupleList*> cache_;
-  std::shared_ptr<EventLoop> eventLoop_;
+  EventLoop* eventLoop_;
   std::function<void(sp_int32, proto::system::HeronTupleSet2*)> tuple_drainer_;
   std::function<void(sp_int32, proto::ckptmgr::DownstreamStatefulCheckpoint*)>
                                   checkpoint_drainer_;

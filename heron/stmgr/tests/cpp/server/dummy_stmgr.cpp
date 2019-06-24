@@ -30,7 +30,7 @@ using std::shared_ptr;
 
 ///////////////////////////// DummyTMasterClient ///////////////////////////////////////////
 DummyTMasterClient::DummyTMasterClient(
-    shared_ptr<EventLoopImpl> eventLoop, const NetworkOptions& _options, const sp_string& stmgr_id,
+    EventLoopImpl* eventLoop, const NetworkOptions& _options, const sp_string& stmgr_id,
     const sp_string& stmgr_host, sp_int32 stmgr_port, sp_int32 shell_port,
     const std::vector<shared_ptr<heron::proto::system::Instance>>& _instances)
     : Client(eventLoop, _options),
@@ -48,7 +48,8 @@ DummyTMasterClient::DummyTMasterClient(
 DummyTMasterClient::~DummyTMasterClient() {}
 
 void DummyTMasterClient::HandleRegisterResponse(
-    void*, unique_ptr<heron::proto::tmaster::StMgrRegisterResponse> response, NetworkErrorCode) {
+    void*, heron::proto::tmaster::StMgrRegisterResponse* response, NetworkErrorCode) {
+  delete response;
 }
 
 void DummyTMasterClient::HandleConnect(NetworkErrorCode _status) {
@@ -76,12 +77,11 @@ void DummyTMasterClient::CreateAndSendRegisterRequest() {
   for (auto iter = instances_.begin(); iter != instances_.end(); ++iter) {
     request->add_instances()->CopyFrom(**iter);
   }
-  SendRequest(std::move(request), nullptr);
+  SendRequest(std::move(request), NULL);
 }
 
 ///////////////////////////// DummyStMgr /////////////////////////////////////////////////
-DummyStMgr::DummyStMgr(shared_ptr<EventLoopImpl> ss, const NetworkOptions& options,
-                       const sp_string& stmgr_id,
+DummyStMgr::DummyStMgr(EventLoopImpl* ss, const NetworkOptions& options, const sp_string& stmgr_id,
                        const sp_string& stmgr_host, sp_int32 stmgr_port,
                        const sp_string& tmaster_host, sp_int32 tmaster_port, sp_int32 shell_port,
                        const std::vector<shared_ptr<heron::proto::system::Instance>>& _instances)
@@ -119,19 +119,20 @@ void DummyStMgr::HandleNewConnection(Connection* conn) {}
 void DummyStMgr::HandleConnectionClose(Connection*, NetworkErrorCode) {}
 
 void DummyStMgr::HandleStMgrHelloRequest(REQID _id, Connection* _conn,
-                                     unique_ptr<heron::proto::stmgr::StrMgrHelloRequest> _request) {
+                                         heron::proto::stmgr::StrMgrHelloRequest* _request) {
   other_stmgrs_ids_.push_back(_request->stmgr());
   heron::proto::stmgr::StrMgrHelloResponse response;
   response.mutable_status()->set_status(heron::proto::system::OK);
   SendResponse(_id, _conn, response);
+  delete _request;
 }
 
 void DummyStMgr::HandleStartBackPressureMessage(Connection*,
-                                        unique_ptr<heron::proto::stmgr::StartBackPressureMessage>) {
+                                                heron::proto::stmgr::StartBackPressureMessage*) {
   ++num_start_bp_;
 }
 
 void DummyStMgr::HandleStopBackPressureMessage(Connection*,
-                                         unique_ptr<heron::proto::stmgr::StopBackPressureMessage>) {
+                                               heron::proto::stmgr::StopBackPressureMessage*) {
   ++num_stop_bp_;
 }

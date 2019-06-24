@@ -25,7 +25,7 @@
 
 class DummyTMasterClient : public Client {
  public:
-  DummyTMasterClient(std::shared_ptr<EventLoopImpl> eventLoop, const NetworkOptions& _options,
+  DummyTMasterClient(EventLoopImpl* eventLoop, const NetworkOptions& _options,
                      const sp_string& stmgr_id, const sp_string& stmgr_host, sp_int32 stmgr_port,
                      sp_int32 shell_port,
                      const std::vector<std::shared_ptr<heron::proto::system::Instance>>& instances);
@@ -41,10 +41,8 @@ class DummyTMasterClient : public Client {
   virtual void HandleConnect(NetworkErrorCode _status);
   // Handle connection close
   virtual void HandleClose(NetworkErrorCode _status);
-  virtual void HandleRegisterResponse(
-                                  void*,
-                                  unique_ptr<heron::proto::tmaster::StMgrRegisterResponse> response,
-                                  NetworkErrorCode);
+  virtual void HandleRegisterResponse(void*, heron::proto::tmaster::StMgrRegisterResponse* response,
+                                      NetworkErrorCode);
   // Send worker request
   void CreateAndSendRegisterRequest();
 
@@ -59,8 +57,7 @@ class DummyTMasterClient : public Client {
 
 class DummyStMgr : public Server {
  public:
-  DummyStMgr(std::shared_ptr<EventLoopImpl> ss, const NetworkOptions& options,
-             const sp_string& stmgr_id,
+  DummyStMgr(EventLoopImpl* ss, const NetworkOptions& options, const sp_string& stmgr_id,
              const sp_string& stmgr_host, sp_int32 stmgr_port, const sp_string& tmaster_host,
              sp_int32 tmaster_port, sp_int32 shell_port,
              const std::vector<std::shared_ptr<heron::proto::system::Instance>>& instances);
@@ -80,11 +77,11 @@ class DummyStMgr : public Server {
 
   // Handle st mgr hello message
   virtual void HandleStMgrHelloRequest(REQID _id, Connection* _conn,
-                                      unique_ptr<heron::proto::stmgr::StrMgrHelloRequest> _request);
+                                       heron::proto::stmgr::StrMgrHelloRequest* _request);
   virtual void HandleStartBackPressureMessage(Connection*,
-                                         unique_ptr<heron::proto::stmgr::StartBackPressureMessage>);
+                                              heron::proto::stmgr::StartBackPressureMessage*);
   virtual void HandleStopBackPressureMessage(Connection*,
-                                          unique_ptr<heron::proto::stmgr::StopBackPressureMessage>);
+                                             heron::proto::stmgr::StopBackPressureMessage*);
 
  private:
   std::vector<sp_string> other_stmgrs_ids_;

@@ -25,7 +25,7 @@
 
 class DummyTupleCache : public heron::stmgr::TupleCache {
  public:
-  explicit DummyTupleCache(std::shared_ptr<EventLoop> _eventLoop)
+  explicit DummyTupleCache(EventLoop* _eventLoop)
   : heron::stmgr::TupleCache(_eventLoop, 1024),
     clear_called_(false) { }
   virtual ~DummyTupleCache() { }

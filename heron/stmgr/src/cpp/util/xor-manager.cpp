@@ -33,7 +33,7 @@
 namespace heron {
 namespace stmgr {
 
-XorManager::XorManager(std::shared_ptr<EventLoop> eventLoop, sp_int32 _timeout,
+XorManager::XorManager(EventLoop* eventLoop, sp_int32 _timeout,
                        const std::vector<sp_int32>& _task_ids)
     : eventLoop_(eventLoop), timeout_(_timeout) {
   n_buckets_ =
@@ -42,12 +42,14 @@ XorManager::XorManager(std::shared_ptr<EventLoop> eventLoop, sp_int32 _timeout,
   eventLoop_->registerTimer([this](EventLoop::Status status) { this->rotate(status); }, false,
                             _timeout * 1000000);
   for (auto iter = _task_ids.begin(); iter != _task_ids.end(); ++iter) {
-    tasks_[*iter] = make_unique<RotatingMap>(n_buckets_);
+    tasks_[*iter] = new RotatingMap(n_buckets_);
   }
 }
 
 XorManager::~XorManager() {
-  tasks_.clear();
+  for (auto iter = tasks_.begin(); iter != tasks_.end(); ++iter) {
+    delete iter->second;
+  }
 }
 
 void XorManager::rotate(EventLoopImpl::Status) {

@@ -27,7 +27,7 @@
 class TestHttpServer {
  public:
   // Constructor
-  TestHttpServer(std::shared_ptr<EventLoopImpl> ss, NetworkOptions& options);
+  TestHttpServer(EventLoopImpl* ss, NetworkOptions& options);
 
   // Destructor
   ~TestHttpServer();

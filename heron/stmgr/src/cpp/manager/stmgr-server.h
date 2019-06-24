@@ -45,10 +45,9 @@ class StMgr;
 
 class StMgrServer : public Server {
  public:
-  StMgrServer(shared_ptr<EventLoop> eventLoop, const NetworkOptions& options,
-              const sp_string& _topology_name,
+  StMgrServer(EventLoop* eventLoop, const NetworkOptions& options, const sp_string& _topology_name,
               const sp_string& _topology_id, const sp_string& _stmgr_id, StMgr* _stmgr,
-              shared_ptr<heron::common::MetricsMgrSt> const& _metrics_manager_client);
+              heron::common::MetricsMgrSt* _metrics_manager_client);
   virtual ~StMgrServer();
 
   // Do back pressure
@@ -70,19 +69,18 @@ class StMgrServer : public Server {
 
   // First from other stream managers
   void HandleStMgrHelloRequest(REQID _id, Connection* _conn,
-                               unique_ptr<proto::stmgr::StrMgrHelloRequest> _request);
-  void HandleTupleStreamMessage(Connection* _conn,
-          unique_ptr<proto::stmgr::TupleStreamMessage> _message);
+                               proto::stmgr::StrMgrHelloRequest* _request);
+  void HandleTupleStreamMessage(Connection* _conn, proto::stmgr::TupleStreamMessage* _message);
 
   // Handler for DownstreamStatefulCheckpoint from a peer stmgr
   void HandleDownstreamStatefulCheckpointMessage(Connection* _conn,
-                                unique_ptr<proto::ckptmgr::DownstreamStatefulCheckpoint> _message);
+                                        proto::ckptmgr::DownstreamStatefulCheckpoint* _message);
 
   // Backpressure message from and to other stream managers
   void HandleStartBackPressureMessage(Connection* _conn,
-                                      unique_ptr<proto::stmgr::StartBackPressureMessage> _message);
+                                      proto::stmgr::StartBackPressureMessage* _message);
   void HandleStopBackPressureMessage(Connection* _conn,
-                                     unique_ptr<proto::stmgr::StopBackPressureMessage> _message);
+                                     proto::stmgr::StopBackPressureMessage* _message);
 
   // map from stmgr_id to their connection
   typedef std::unordered_map<sp_string, Connection*> StreamManagerConnectionMap;
@@ -102,7 +100,7 @@ class StMgrServer : public Server {
   StMgr* stmgr_;
 
   // Metrics
-  shared_ptr<heron::common::MetricsMgrSt> metrics_manager_client_;
+  heron::common::MetricsMgrSt* metrics_manager_client_;
   shared_ptr<heron::common::CountMetric> tuples_from_stmgrs_metrics_;
   shared_ptr<heron::common::CountMetric> ack_tuples_from_stmgrs_metrics_;
   shared_ptr<heron::common::CountMetric> fail_tuples_from_stmgrs_metrics_;
